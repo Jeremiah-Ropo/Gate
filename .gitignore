@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+log/*.log
+src/log/*.log
+src/core/.certs/*.pem
+src/temp/
+.DS_Store
+coverage/
