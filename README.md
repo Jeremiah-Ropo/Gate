@@ -29,6 +29,7 @@ yarn db:migrate        # apply them
 yarn dev
 ```
 
+## ⚠️ This is a template not the main architecture.
 ## Offline check-in flow
 
 1. A door device registers against `POST /v1/check-in/devices` (admin-only) and is issued a device
