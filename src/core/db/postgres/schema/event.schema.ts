@@ -11,12 +11,11 @@ export const events = pgTable("events", {
   venue: varchar("venue", { length: 255 }),
   address: varchar("address", { length: 500 }),
   coverImage: varchar("cover_image", { length: 512 }),
-  timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
-  startDate: timestamp("start_date", { withTimezone: true }).notNull(),
-  endDate: timestamp("end_date", { withTimezone: true }).notNull(),
-  capacity: integer("capacity").notNull().default(0),
-  ticketPrice: integer("ticket_price").notNull().default(0),
-  currency: varchar("currency", { length: 8 }).notNull().default("NGN"),
+  starts_at: timestamp("starts_at", { withTimezone: true }).notNull(),
+  // stored in the currency's major unit (e.g. whole naira), since the
+  // mock payment provider doesn't need minor-unit precision
+  ticketPrice: integer("ticket_price").notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
   status: eventStatusEnum("status").notNull().default("draft"),
   createdBy: uuid("created_by")
     .notNull()
