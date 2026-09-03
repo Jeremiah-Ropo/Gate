@@ -17,8 +17,5 @@ declare namespace NodeJS {
     SECURE: string;
     SERVICE: string;
     HOST: string;
-    PORTMAIL: string;
-    GATE_NOREPLY: string;
-    GATE_NOREPLY_PASSWORD: string;
   }
 }

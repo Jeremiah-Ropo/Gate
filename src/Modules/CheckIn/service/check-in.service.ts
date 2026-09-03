@@ -1,9 +1,6 @@
 import { Service } from "typedi";
 
 import { ECheckInStatus, ETicketStatus } from "core/global/entities/enums";
-import logger from "core/global/utils/logger";
-import NotificationPublisher from "core/global/shared/queue/publisher/notification.publisher";
-import eventRepository from "Modules/Event/repository/event.repository";
 import ticketRepository from "Modules/Ticket/repository/ticket.repository";
 import checkInRepository from "../repository/check-in.repository";
 import { ICheckInResult, ICheckInService, IOfflineScanDTO, ISyncCheckInDTO } from "../entity/check-in.interface";
@@ -14,7 +11,6 @@ class CheckInService implements ICheckInService {
   private static instance: ICheckInService;
   private readonly repository = checkInRepository;
   private readonly tickets = ticketRepository;
-  private readonly events = eventRepository;
 
   public static getInstance(): ICheckInService {
     if (!this.instance) {
@@ -120,19 +116,6 @@ class CheckInService implements ICheckInService {
       isOfflineSync: true,
       clientScanId: scan.clientScanId,
     });
-
-    const event = await this.events.findById(ticket.eventId);
-    new NotificationPublisher()
-      .publish({
-        type: "check-in-alert",
-        data: {
-          email: ticket.ownerEmail,
-          name: ticket.ownerName,
-          eventName: event?.name ?? "your event",
-          scannedAt: scannedAt.toISOString(),
-        },
-      })
-      .catch((err) => logger.error(`[CheckIn] Failed to publish check-in alert: ${err}`));
 
     return {
       clientScanId: scan.clientScanId,
