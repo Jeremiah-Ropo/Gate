@@ -25,7 +25,3 @@ The public surface has a stable minimal contract separate from organizer data. S
 ## Proof
 
 Test anonymous success, draft/cancelled exclusion, bounded pagination, cache-equivalent responses, `401` on claim without authentication, and rate-limit responses.
-
-## AI disclosure
-
-AI helped structure this draft. The owner must validate the public fields, authentication boundary, pagination, and failure behavior.

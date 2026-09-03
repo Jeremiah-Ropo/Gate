@@ -25,7 +25,3 @@ One popular event creates a hot row, so lock wait and claim latency must be meas
 ## Proof
 
 Capacity 1 with at least 20 concurrent requests yields one reservation. Duplicate requests/transitions do not change counters twice. Payment racing expiry yields one terminal state. Redis/BullMQ failure cannot permit overselling.
-
-## AI disclosure
-
-AI helped structure this draft. The Inventory owner must validate the SQL/Drizzle transaction, measurements, alternatives, and failure tests.

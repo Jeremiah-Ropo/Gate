@@ -28,7 +28,3 @@ Offline decisions are limited by the downloaded dataset and partition. Device re
 ## Proof
 
 Test duplicate online calls, repeated batches, kill-before-send, kill-after-send, partial response, two-door conflict, revoked device, key rotation, and delayed server response.
-
-## AI disclosure
-
-AI helped structure this draft. The owner must validate the offline threat model, partition rule, device lifecycle, and retry/kill tests.

@@ -25,7 +25,3 @@ Brief staleness is bounded by TTL, and explicit invalidation shortens it. Cache 
 ## Proof
 
 Test hit, miss, invalidation, expiry, Redis failure, and draft/cancelled exclusion. Log cache outcome and measure hit rate/read latency without building a chart dashboard.
-
-## AI disclosure
-
-AI helped structure this draft. The owner must validate projection fields, TTL, invalidation keys, failure policy, and measurements.
