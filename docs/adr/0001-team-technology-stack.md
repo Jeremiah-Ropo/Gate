@@ -6,7 +6,7 @@
 
 ## Context
 
-Five engineers have one week remaining to deliver one deployed system. The capstone requires the team to choose one backend language/framework on day 1, choose one web stack, automate formatting/linting, and record the choice as the first ADR. The existing repository already contains an Express/TypeScript backend, Drizzle/PostgreSQL, Redis, BullMQ, Pino, ESLint, Prettier, and Mocha tests.
+Five engineers have to deliver one deployed system. The capstone requires the team to choose one backend language/framework on day 1, choose one web stack, automate formatting/linting, and record the choice as the first ADR. The existing repository already contains an Express/TypeScript backend, Drizzle/PostgreSQL, Redis, BullMQ, Pino, ESLint, Prettier, and Mocha tests.
 
 The door must run in a phone browser and continue offline. There is no native app. The team has insufficient time to learn a second backend language or introduce multiple independently deployed business services.
 
