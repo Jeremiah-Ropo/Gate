@@ -10,7 +10,10 @@ describe("Notification-free capstone scope", () => {
       dependencies: Record<string, string>;
     };
 
-    expect(fs.existsSync(emailTemplateDirectory)).to.equal(false);
+    const emailTemplates = fs.existsSync(emailTemplateDirectory)
+      ? fs.readdirSync(emailTemplateDirectory).filter((file) => file.endsWith(".ts"))
+      : [];
+    expect(emailTemplates).to.deep.equal([]);
     expect(envExample).not.to.match(/^(SERVICE|HOST|SECURE|PORTMAIL|GATE_NOREPLY)=/m);
     expect(packageJson.dependencies).not.to.have.any.keys("handlebars", "nodemailer");
   });

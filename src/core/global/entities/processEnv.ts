@@ -14,8 +14,5 @@ declare namespace NodeJS {
     CLOUD_NAME: string;
     API_KEY: string;
     API_SECRET: string;
-    SECURE: string;
-    SERVICE: string;
-    HOST: string;
   }
 }
