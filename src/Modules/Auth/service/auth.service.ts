@@ -83,7 +83,6 @@ export class AuthService implements IAuthService {
   async logout(payload: ILogoutDTO): Promise<void> {
     await RedisManager.set(`blacklist:${payload.token}`, { loggedOut: true }, 3600);
   }
-
 }
 
 export default new AuthService();
