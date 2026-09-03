@@ -4,7 +4,7 @@ import request from "supertest";
 
 import "../src/core/global/entities/types";
 import { AuthService } from "../src/Modules/Auth/service/auth.service";
-import authRouter, { credentialRateLimitPolicies } from "../src/Modules/Auth/routes/auth.routes";
+import createAuthRoutes, { credentialRateLimitPolicies } from "../src/Modules/Auth/routes/auth.routes";
 import { IUserRepository } from "../src/Modules/User/entity/user.interface";
 import { NewUser, User } from "../src/Modules/User/entity/user.model";
 
@@ -63,7 +63,7 @@ describe("Capstone scope", () => {
     it(`does not expose the out-of-scope ${path} notification flow`, async () => {
       const app = express();
       app.use(express.json());
-      app.use(authRouter);
+      app.use(createAuthRoutes(() => (_req, _res, next) => next()));
 
       expect((await request(app).post(path).send({})).status).to.equal(404);
     });
