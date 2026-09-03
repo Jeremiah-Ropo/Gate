@@ -10,7 +10,10 @@ class QueueManager {
   private queues: Map<string, Queue> = new Map();
 
   private constructor() {
-    this.connection = new IORedis(REDIS_CONNECTION_STRING as string, { maxRetriesPerRequest: null });
+    this.connection = new IORedis(REDIS_CONNECTION_STRING as string, {
+      lazyConnect: true,
+      maxRetriesPerRequest: null,
+    });
   }
 
   public static getInstance(): QueueManager {
@@ -21,8 +24,23 @@ class QueueManager {
   }
 
   public async connect(): Promise<void> {
+    if (this.connection.status === "wait") {
+      await this.connection.connect();
+    }
     await this.connection.ping();
     logger.info("Queue connection established");
+  }
+
+  public async ping(): Promise<void> {
+    await this.connection.ping();
+  }
+
+  public async close(): Promise<void> {
+    await Promise.all([...this.queues.values()].map((queue) => queue.close()));
+    this.queues.clear();
+    if (this.connection.status !== "wait" && this.connection.status !== "end") {
+      await this.connection.quit();
+    }
   }
 
   public getQueue(name: string): Queue {

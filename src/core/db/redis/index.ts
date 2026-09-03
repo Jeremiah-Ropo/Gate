@@ -39,6 +39,19 @@ class RedisManager {
     }
   }
 
+  public async ping(): Promise<void> {
+    if (!this.client.isOpen) {
+      throw new Error("Redis client is not connected");
+    }
+    await this.client.ping();
+  }
+
+  public async disconnect(): Promise<void> {
+    if (this.client.isOpen) {
+      await this.client.quit();
+    }
+  }
+
   public async get(key: string): Promise<string | null> {
     try {
       const value = await this.client.get(key);

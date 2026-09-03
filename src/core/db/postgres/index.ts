@@ -8,24 +8,27 @@ import * as schema from "./schema";
 let pool: Pool;
 let db: NodePgDatabase<typeof schema>;
 
-export const connectDB = (): void => {
+export const connectDB = async (): Promise<void> => {
   if (!DATABASE.URL) {
-    logger.error("DATABASE_URL is not defined, exiting now...");
-    process.exit(1);
+    throw new Error("DATABASE_URL is not defined");
   }
 
   pool = new Pool({ connectionString: DATABASE.URL });
-  pool.on("error", (err) => logger.error(`Postgres pool error: ${err}`));
+  pool.on("error", (err) => logger.error({ err }, "Postgres pool error"));
 
   db = drizzle(pool, { schema });
+  await pingDB();
+  logger.info("Postgres connection successful");
+};
 
-  pool
-    .query("SELECT 1")
-    .then(() => logger.info("Postgres connection successful"))
-    .catch((err) => {
-      logger.error(`Postgres connection failed: ${err}`);
-      process.exit(1);
-    });
+export const pingDB = async (): Promise<void> => {
+  if (!pool) throw new Error("Database pool is not initialized");
+  await pool.query("SELECT 1");
+};
+
+export const disconnectDB = async (): Promise<void> => {
+  if (!pool) return;
+  await pool.end();
 };
 
 export const getDb = (): NodePgDatabase<typeof schema> => {
