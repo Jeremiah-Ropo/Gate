@@ -4,11 +4,17 @@ import request from "supertest";
 
 import "../src/core/global/entities/types";
 import { AuthService } from "../src/Modules/Auth/service/auth.service";
-import authRouter from "../src/Modules/Auth/routes/auth.routes";
+import authRouter, { credentialRateLimitPolicies } from "../src/Modules/Auth/routes/auth.routes";
 import { IUserRepository } from "../src/Modules/User/entity/user.interface";
 import { NewUser, User } from "../src/Modules/User/entity/user.model";
 
 describe("Capstone scope", () => {
+  it("uses the account limiter only on email-and-password entry points", () => {
+    expect(Object.keys(credentialRateLimitPolicies).sort()).to.deep.equal(["login", "register"]);
+    expect(credentialRateLimitPolicies.login.identity).to.equal("email");
+    expect(credentialRateLimitPolicies.register.identity).to.equal("email");
+  });
+
   it("creates and signs in an attendee without an email-notification step", async () => {
     let created: NewUser | undefined;
     let updated: Partial<NewUser> | undefined;
