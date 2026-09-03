@@ -2,6 +2,7 @@ import { expect } from "chai";
 import express from "express";
 import request from "supertest";
 
+import "../src/core/global/entities/types";
 import { AuthService } from "../src/Modules/Auth/service/auth.service";
 import authRouter from "../src/Modules/Auth/routes/auth.routes";
 import { IUserRepository } from "../src/Modules/User/entity/user.interface";

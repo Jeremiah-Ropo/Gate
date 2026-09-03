@@ -19,28 +19,13 @@ export interface ILoginOutputDTO {
   user: Omit<User, "password">;
 }
 
-export interface IVerifyEmailDTO {
-  token: string;
-  sessionId: string;
-}
-
-export interface IResetPasswordDTO {
-  token: string;
-  sessionId: string;
-  newPassword: string;
-}
-
 export interface ILogoutDTO {
   token: string;
 }
 
 export interface IAuthService {
-  register(payload: IRegisterInputDTO): Promise<{ sessionId: string; resendTokenSessionId: string }>;
-  verifyEmail(payload: IVerifyEmailDTO): Promise<ILoginOutputDTO>;
+  register(payload: IRegisterInputDTO): Promise<ILoginOutputDTO>;
   login(payload: ILoginInputDTO): Promise<ILoginOutputDTO>;
   refreshToken(token: string): Promise<{ token: string }>;
   logout(payload: ILogoutDTO): Promise<void>;
-  forgotPassword(email: string): Promise<{ sessionId: string }>;
-  resetPassword(payload: IResetPasswordDTO): Promise<{ message: string }>;
-  resendVerificationEmail(resendTokenSessionId: string): Promise<{ sessionId: string; resendTokenSessionId: string }>;
 }
