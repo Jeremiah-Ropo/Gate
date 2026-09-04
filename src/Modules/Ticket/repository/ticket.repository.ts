@@ -1,6 +1,6 @@
 import { count, desc, eq } from "drizzle-orm";
 
-import { getDb, type DbExecutor } from "core/db/postgres";
+import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { ITicketRepository } from "../entity/ticket.interface";
 import { NewTicket, Ticket, TicketTable } from "../entity/ticket.model";
 
@@ -16,8 +16,8 @@ class TicketRepository implements ITicketRepository {
     return this.instance;
   }
 
-  withExecutor(executor: DbExecutor): ITicketRepository {
-    return new TicketRepository(executor);
+  withTx(tx: DbTransaction): ITicketRepository {
+    return new TicketRepository(tx);
   }
 
   private get db(): DbExecutor {

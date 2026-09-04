@@ -1,4 +1,4 @@
-import type { DbExecutor } from "core/db/postgres";
+import type { DbTransaction } from "core/db/postgres";
 import type { IUserRepository } from "Modules/User/entity/user.interface";
 import userRepository from "Modules/User/repository/user.repository";
 
@@ -6,8 +6,8 @@ class AuthRepository {
   private static instance: AuthRepository;
   public readonly users: IUserRepository;
 
-  constructor(executor?: DbExecutor) {
-    this.users = executor ? userRepository.withExecutor(executor) : userRepository;
+  constructor(tx?: DbTransaction) {
+    this.users = tx ? userRepository.withTx(tx) : userRepository;
   }
 
   public static getInstance(): AuthRepository {
@@ -17,8 +17,8 @@ class AuthRepository {
     return this.instance;
   }
 
-  withExecutor(executor: DbExecutor): AuthRepository {
-    return new AuthRepository(executor);
+  withTx(tx: DbTransaction): AuthRepository {
+    return new AuthRepository(tx);
   }
 }
 

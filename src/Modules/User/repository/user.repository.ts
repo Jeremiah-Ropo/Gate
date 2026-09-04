@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { getDb, type DbExecutor } from "core/db/postgres";
+import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { IUserRepository } from "../entity/user.interface";
 import { NewUser, User, UserTable } from "../entity/user.model";
 
@@ -16,8 +16,8 @@ class UserRepository implements IUserRepository {
     return this.instance;
   }
 
-  withExecutor(executor: DbExecutor): IUserRepository {
-    return new UserRepository(executor);
+  withTx(tx: DbTransaction): IUserRepository {
+    return new UserRepository(tx);
   }
 
   private get db(): DbExecutor {

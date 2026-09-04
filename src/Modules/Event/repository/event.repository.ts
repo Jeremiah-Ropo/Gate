@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 
-import { getDb, type DbExecutor } from "core/db/postgres";
+import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { EventTable, Event, NewEvent } from "../entity/event.model";
 import { IEventRepository } from "../entity/event.interface";
 
@@ -16,8 +16,8 @@ class EventRepository implements IEventRepository {
     return this.instance;
   }
 
-  withExecutor(executor: DbExecutor): IEventRepository {
-    return new EventRepository(executor);
+  withTx(tx: DbTransaction): IEventRepository {
+    return new EventRepository(tx);
   }
 
   private get db(): DbExecutor {

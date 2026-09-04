@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { getDb, type DbExecutor } from "core/db/postgres";
+import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { ICheckInRepository } from "../entity/check-in.interface";
 import { CheckIn, CheckInTable, NewCheckIn } from "../entity/check-in.model";
 
@@ -16,8 +16,8 @@ class CheckInRepository implements ICheckInRepository {
     return this.instance;
   }
 
-  withExecutor(executor: DbExecutor): ICheckInRepository {
-    return new CheckInRepository(executor);
+  withTx(tx: DbTransaction): ICheckInRepository {
+    return new CheckInRepository(tx);
   }
 
   private get db(): DbExecutor {

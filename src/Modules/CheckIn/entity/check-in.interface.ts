@@ -1,5 +1,5 @@
 import { ECheckInStatus } from "core/global/entities/enums";
-import type { DbExecutor } from "core/db/postgres";
+import type { DbTransaction } from "core/db/postgres";
 import { CheckIn, NewCheckIn } from "./check-in.model";
 
 export interface IOfflineScanDTO {
@@ -25,7 +25,7 @@ export interface ICheckInService {
 }
 
 export interface ICheckInRepository {
-  withExecutor(executor: DbExecutor): ICheckInRepository;
+  withTx(tx: DbTransaction): ICheckInRepository;
   findByClientScanId(clientScanId: string): Promise<CheckIn | null>;
   create(data: NewCheckIn): Promise<CheckIn>;
   listByTicket(ticketId: string): Promise<CheckIn[]>;
