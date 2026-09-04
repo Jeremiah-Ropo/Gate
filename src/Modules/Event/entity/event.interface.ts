@@ -97,3 +97,16 @@ export interface IEventRepository {
   listByOrganiser(organiserId: string): Promise<Event[]>;
   update(id: string, data: Partial<NewEvent>): Promise<Event | null>;
 }
+
+/**
+ * Cache-aside store for descriptors. Reads and writes degrade to a miss instead of throwing: a
+ * Redis outage must slow browse down to a Postgres read, never fail it. Invalidation is the one
+ * method allowed to throw, so the worker retries rather than leaving a stale entry.
+ */
+export interface IEventCache {
+  getDescriptor(eventId: string): Promise<IPublishedEventDescriptor | null>;
+  setDescriptor(descriptor: IPublishedEventDescriptor): Promise<void>;
+  getPublishedList(): Promise<IPublishedEventDescriptor[] | null>;
+  setPublishedList(descriptors: IPublishedEventDescriptor[]): Promise<void>;
+  invalidateEvent(eventId: string): Promise<void>;
+}

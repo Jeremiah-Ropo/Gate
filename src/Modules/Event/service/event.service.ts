@@ -2,6 +2,9 @@ import { EEventStatus } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
 import { generateUniqueSuffix, slugify } from "core/global/utils/helper";
 import cloudinary from "core/providers/cloud-storage/cloudinary";
+import logger from "core/global/utils/logger";
+import EventCachePublisher from "../queue/event-cache.publisher";
+import { EventMutationReason } from "../queue/event-cache.entity";
 import eventRepository from "../repository/event.repository";
 import {
   ICreateEventDTO,
@@ -18,6 +21,18 @@ import { Event } from "../entity/event.model";
  */
 export class EventService implements IEventService {
   constructor(private readonly repository: IEventRepository) {}
+
+  /**
+   * Queues cache invalidation for a mutation that has already committed. Deliberately not awaited
+   * into the request's failure path: the write is durable by this point, so refusing the response
+   * because Redis is unreachable would be the wrong trade. A lost job leaves the cache stale only
+   * until the backstop TTL in event-cache.ts.
+   */
+  private announceCommittedMutation(eventId: string, reason: EventMutationReason): void {
+    new EventCachePublisher()
+      .publishInvalidation(eventId, reason)
+      .catch((err) => logger.error(`[Event] failed to queue cache invalidation for ${eventId}: ${err}`));
+  }
 
   private async buildUniqueSlug(name: string): Promise<string> {
     const slug = slugify(name);
@@ -49,7 +64,7 @@ export class EventService implements IEventService {
    * and offers no way to change capacity: that would be an Inventory operation.
    */
   async publishEvent(createdBy: string, payload: IPublishEventDTO): Promise<Event> {
-    return this.repository.createPublishedWithInventory(
+    const event = await this.repository.createPublishedWithInventory(
       {
         name: payload.name,
         slug: await this.buildUniqueSlug(payload.name),
@@ -64,6 +79,10 @@ export class EventService implements IEventService {
       },
       payload.capacity,
     );
+
+    // A new published event changes what the cached published list should contain.
+    this.announceCommittedMutation(event.id, "published");
+    return event;
   }
 
   async getById(id: string): Promise<Event> {
@@ -98,6 +117,10 @@ export class EventService implements IEventService {
     if (!updated) {
       throw new CustomError(400, "BadRequest", "Event not updated");
     }
+
+    // Covers status transitions in both directions: an event entering or leaving `published`
+    // changes the cached list as much as a rename changes the cached entry.
+    this.announceCommittedMutation(updated.id, "updated");
     return updated;
   }
 
