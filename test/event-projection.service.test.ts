@@ -2,6 +2,7 @@ import { expect } from "chai";
 
 import { CustomError } from "core/global/errors";
 import { EventProjectionService } from "Modules/Event/service/event-projection.service";
+import { FakeEventCache } from "./helpers/fake-event-cache";
 import { FakeEventInventoryReader, makeSnapshot } from "./helpers/fake-event-inventory.reader";
 import { FakeEventRepository, makeEvent } from "./helpers/fake-event.repository";
 
@@ -11,10 +12,14 @@ const OTHER_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const ORGANISER_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const OTHER_ORGANISER_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
-const build = (rows = [makeEvent({ id: PUBLISHED_ID })], snapshots = [makeSnapshot(PUBLISHED_ID)]) => {
+const build = (
+  rows = [makeEvent({ id: PUBLISHED_ID })],
+  snapshots = [makeSnapshot(PUBLISHED_ID)],
+  cache = new FakeEventCache(),
+) => {
   const repository = new FakeEventRepository(rows);
   const inventory = new FakeEventInventoryReader(snapshots);
-  return { repository, inventory, service: new EventProjectionService(repository, inventory) };
+  return { repository, inventory, cache, service: new EventProjectionService(repository, inventory, cache) };
 };
 
 describe("EventProjectionService", () => {
@@ -141,6 +146,58 @@ describe("EventProjectionService", () => {
       expect(events.find((event) => event.id === DRAFT_ID)?.status).to.equal("draft");
       expect(events.find((event) => event.id === PUBLISHED_ID)?.sold).to.equal(30);
       expect(events.find((event) => event.id === PUBLISHED_ID)?.remaining).to.equal(70);
+    });
+  });
+
+  describe("caching", () => {
+    it("serves a second list from cache without touching Postgres", async () => {
+      const { service, repository } = build();
+
+      await service.listPublished();
+      await service.listPublished();
+
+      expect(repository.reads).to.equal(1);
+    });
+
+    it("still reads Inventory on a cache hit, so figures are never served stale", async () => {
+      const { service, repository, inventory } = build();
+
+      await service.listPublished();
+      await service.listPublished();
+
+      // The whole point of the split: event fields cached, stock figures always fresh.
+      expect(repository.reads).to.equal(1);
+      expect(inventory.calls).to.equal(2);
+    });
+
+    it("falls back to Postgres when the cache is unavailable", async () => {
+      const { service, repository } = build([makeEvent({ id: PUBLISHED_ID })], [], new FakeEventCache(true));
+
+      expect(await service.listPublished()).to.have.lengthOf(1);
+      expect(await service.listPublished()).to.have.lengthOf(1);
+      expect(repository.reads).to.equal(2);
+    });
+
+    it("never caches a draft, even when one is requested by id", async () => {
+      const { service, cache } = build([makeEvent({ id: DRAFT_ID, status: "draft" })], []);
+
+      try {
+        await service.getPublishedById(DRAFT_ID);
+        expect.fail("expected getPublishedById to throw");
+      } catch {
+        /* expected */
+      }
+
+      expect(cache.writes).to.equal(0);
+    });
+
+    it("never serves the console from cache, since an organiser needs current truth", async () => {
+      const { service, repository } = build([makeEvent({ createdBy: ORGANISER_ID })], []);
+
+      await service.listForOrganiser(ORGANISER_ID);
+      await service.listForOrganiser(ORGANISER_ID);
+
+      expect(repository.reads).to.equal(2);
     });
   });
 });
