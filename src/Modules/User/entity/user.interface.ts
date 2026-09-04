@@ -1,4 +1,5 @@
 import { ERole } from "core/global/entities/enums";
+import type { DbExecutor } from "core/db/postgres";
 import { NewUser, User } from "./user.model";
 
 export interface ICreateUserDTO {
@@ -26,6 +27,7 @@ export interface IUserService {
 }
 
 export interface IUserRepository {
+  withExecutor(executor: DbExecutor): IUserRepository;
   create(data: NewUser): Promise<User>;
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;

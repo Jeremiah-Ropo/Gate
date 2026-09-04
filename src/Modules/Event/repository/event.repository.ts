@@ -1,11 +1,13 @@
 import { desc, eq } from "drizzle-orm";
 
-import { getDb } from "core/db/postgres";
+import { getDb, type DbExecutor } from "core/db/postgres";
 import { EventTable, Event, NewEvent } from "../entity/event.model";
 import { IEventRepository } from "../entity/event.interface";
 
 class EventRepository implements IEventRepository {
   private static instance: IEventRepository;
+
+  constructor(private readonly executor?: DbExecutor) {}
 
   public static getInstance(): IEventRepository {
     if (!this.instance) {
@@ -14,27 +16,35 @@ class EventRepository implements IEventRepository {
     return this.instance;
   }
 
+  withExecutor(executor: DbExecutor): IEventRepository {
+    return new EventRepository(executor);
+  }
+
+  private get db(): DbExecutor {
+    return this.executor ?? getDb();
+  }
+
   async create(data: NewEvent): Promise<Event> {
-    const [event] = await getDb().insert(EventTable).values(data).returning();
+    const [event] = await this.db.insert(EventTable).values(data).returning();
     return event;
   }
 
   async findById(id: string): Promise<Event | null> {
-    const [event] = await getDb().select().from(EventTable).where(eq(EventTable.id, id)).limit(1);
+    const [event] = await this.db.select().from(EventTable).where(eq(EventTable.id, id)).limit(1);
     return event ?? null;
   }
 
   async findBySlug(slug: string): Promise<Event | null> {
-    const [event] = await getDb().select().from(EventTable).where(eq(EventTable.slug, slug)).limit(1);
+    const [event] = await this.db.select().from(EventTable).where(eq(EventTable.slug, slug)).limit(1);
     return event ?? null;
   }
 
   async list(): Promise<Event[]> {
-    return getDb().select().from(EventTable).orderBy(desc(EventTable.starts_at));
+    return this.db.select().from(EventTable).orderBy(desc(EventTable.starts_at));
   }
 
   async update(id: string, data: Partial<NewEvent>): Promise<Event | null> {
-    const [event] = await getDb()
+    const [event] = await this.db
       .update(EventTable)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(EventTable.id, id))
