@@ -11,9 +11,10 @@ export enum EEventStatus {
   COMPLETED = "completed",
 }
 
+// Mirrors the ticket_status database enum. `checked_in` was removed there because
+// admission is a fact about a scan, not about the ticket: it lives in check_ins.
 export enum ETicketStatus {
   VALID = "valid",
-  CHECKED_IN = "checked_in",
   VOID = "void",
   REFUNDED = "refunded",
 }

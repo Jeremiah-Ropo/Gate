@@ -27,6 +27,7 @@ export interface ICheckInService {
 export interface ICheckInRepository {
   withTx(tx: DbTransaction): ICheckInRepository;
   findByClientScanId(clientScanId: string): Promise<CheckIn | null>;
+  findSuccessByTicket(ticketId: string): Promise<CheckIn | null>;
   create(data: NewCheckIn): Promise<CheckIn>;
   listByTicket(ticketId: string): Promise<CheckIn[]>;
 }
