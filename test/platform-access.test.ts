@@ -81,4 +81,8 @@ describe("Platform rate-limit policy", () => {
 
     expect(new Set(names).size).to.equal(names.length);
   });
+
+  it("protects device credential exchange before a device identity exists", () => {
+    expect(rateLimitPolicies.deviceAuth).to.deep.include({ identity: "ip", limit: 10 });
+  });
 });

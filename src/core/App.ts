@@ -1,5 +1,6 @@
 import "dotenv/config";
 import "reflect-metadata";
+import { randomUUID } from "crypto";
 import { Server } from "http";
 import path from "path";
 
@@ -7,7 +8,7 @@ import cookieParser from "cookie-parser";
 import express, { Application, Request, RequestHandler, Response } from "express";
 import fileUpload from "express-fileupload";
 import helmet from "helmet";
-import morgan from "morgan";
+import pinoHttp from "pino-http";
 
 import { connectDB, disconnectDB, pingDB } from "core/db/postgres";
 import RedisManager from "core/db/redis";
@@ -35,6 +36,20 @@ const checkReadiness: ReadinessCheck = async () => {
 };
 
 const setupMiddleware = (app: Application): void => {
+  app.use(
+    pinoHttp({
+      logger,
+      genReqId: (_req, res) => {
+        const id = randomUUID();
+        res.setHeader("X-Request-Id", id);
+        return id;
+      },
+      serializers: {
+        req: (req) => ({ id: req.id, method: req.method, path: req.url?.split("?")[0] }),
+        res: (res) => ({ statusCode: res.statusCode }),
+      },
+    }),
+  );
   app.use(corsMiddleware);
   app.use(helmet());
   app.use(express.json({ limit: "10mb" }));
@@ -51,7 +66,6 @@ const setupMiddleware = (app: Application): void => {
       preserveExtension: true,
     }) as unknown as RequestHandler,
   );
-  app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
   app.set("trust proxy", 1);
   app.get("/favicon.ico", (_req: Request, res: Response) => res.status(204).end());
 };
@@ -62,12 +76,20 @@ const setupHealthChecks = (app: Application, readinessCheck: ReadinessCheck): vo
   });
 
   app.get("/health/ready", async (_req: Request, res: Response) => {
+    let timer: NodeJS.Timeout;
     try {
-      await readinessCheck();
+      await Promise.race([
+        readinessCheck(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error("Readiness timeout")), 2000);
+        }),
+      ]);
       res.status(200).json({ status: "ready", service: "api" });
     } catch (error) {
       logger.warn({ errorType: error instanceof Error ? error.name : "UnknownError" }, "API readiness check failed");
       res.status(503).json({ status: "not_ready", service: "api" });
+    } finally {
+      clearTimeout(timer);
     }
   });
 };
