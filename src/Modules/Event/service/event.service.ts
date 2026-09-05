@@ -1,48 +1,69 @@
-import { Service } from "typedi";
-
+import { EEventStatus } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
 import { generateUniqueSuffix, slugify } from "core/global/utils/helper";
 import cloudinary from "core/providers/cloud-storage/cloudinary";
 import eventRepository from "../repository/event.repository";
-import { ICreateEventDTO, IEventService, IUpdateEventDTO } from "../entity/event.interface";
+import {
+  ICreateEventDTO,
+  IEventRepository,
+  IEventService,
+  IPublishEventDTO,
+  IUpdateEventDTO,
+} from "../entity/event.interface";
 import { Event } from "../entity/event.model";
 
-@Service()
-class EventService implements IEventService {
-  private static instance: IEventService;
-  private readonly repository = eventRepository;
+/**
+ * Write side of the Events slice. The repository is a constructor argument so the publish path —
+ * which is the one place this slice writes Inventory's table — can be tested without Postgres.
+ */
+export class EventService implements IEventService {
+  constructor(private readonly repository: IEventRepository) {}
 
-  public static getInstance(): IEventService {
-    if (!this.instance) {
-      this.instance = new EventService();
+  private async buildUniqueSlug(name: string): Promise<string> {
+    const slug = slugify(name);
+    if (await this.repository.findBySlug(slug)) {
+      return `${slug}-${generateUniqueSuffix()}`;
     }
-    return this.instance;
+    return slug;
   }
 
   async createEvent(createdBy: string, payload: ICreateEventDTO): Promise<Event> {
-    if (new Date(payload.endDate) <= new Date(payload.startDate)) {
-      throw new CustomError(422, "Validation", "endDate must be after startDate");
-    }
-
-    let slug = slugify(payload.name);
-    if (await this.repository.findBySlug(slug)) {
-      slug = `${slug}-${generateUniqueSuffix()}`;
-    }
-
     return this.repository.create({
       name: payload.name,
-      slug,
+      slug: await this.buildUniqueSlug(payload.name),
       description: payload.description,
       venue: payload.venue,
       address: payload.address,
-      timezone: payload.timezone || "UTC",
-      startDate: new Date(payload.startDate),
-      endDate: new Date(payload.endDate),
-      capacity: payload.capacity,
+      starts_at: new Date(payload.startsAt),
       ticketPrice: payload.ticketPrice,
       currency: payload.currency || "NGN",
       createdBy,
     });
+  }
+
+  /**
+   * Creates an event already published, with a fixed ticket count.
+   *
+   * The count is the capacity of the event's inventory row, created in the same transaction — the
+   * only write this slice makes to Inventory's table. Events never touches a counter afterwards,
+   * and offers no way to change capacity: that would be an Inventory operation.
+   */
+  async publishEvent(createdBy: string, payload: IPublishEventDTO): Promise<Event> {
+    return this.repository.createPublishedWithInventory(
+      {
+        name: payload.name,
+        slug: await this.buildUniqueSlug(payload.name),
+        description: payload.description,
+        venue: payload.venue,
+        address: payload.address,
+        starts_at: new Date(payload.startsAt),
+        ticketPrice: payload.ticketPrice ?? 0,
+        currency: payload.currency || "NGN",
+        status: EEventStatus.PUBLISHED,
+        createdBy,
+      },
+      payload.capacity,
+    );
   }
 
   async getById(id: string): Promise<Event> {
@@ -68,10 +89,11 @@ class EventService implements IEventService {
   async updateEvent(id: string, requesterId: string, payload: IUpdateEventDTO): Promise<Event> {
     await this.assertOwnership(id, requesterId);
 
+    // startsAt is the DTO's name for the starts_at column; everything else maps straight through.
+    const { startsAt, ...rest } = payload;
     const updated = await this.repository.update(id, {
-      ...payload,
-      startDate: payload.startDate ? new Date(payload.startDate) : undefined,
-      endDate: payload.endDate ? new Date(payload.endDate) : undefined,
+      ...rest,
+      ...(startsAt ? { starts_at: new Date(startsAt) } : {}),
     });
     if (!updated) {
       throw new CustomError(400, "BadRequest", "Event not updated");
@@ -91,4 +113,4 @@ class EventService implements IEventService {
   }
 }
 
-export default EventService.getInstance();
+export default new EventService(eventRepository);

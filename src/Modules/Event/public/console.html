@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gate — Organiser console</title>
+    <!--
+      Read-only console. No styling beyond what makes a table legible, per the brief.
+      The page holds no data of its own: it sends the organiser's bearer token to
+      GET /v1/console/events, which is where authorisation is enforced.
+    -->
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 2rem;
+        max-width: 60rem;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border: 1px solid #999;
+        padding: 0.4rem 0.6rem;
+        text-align: left;
+      }
+      td.num {
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Organiser console</h1>
+
+    <form id="token-form">
+      <label for="token">Access token</label>
+      <input id="token" name="token" type="password" size="50" autocomplete="off" required />
+      <button type="submit">Load my events</button>
+    </form>
+
+    <p id="status" role="status"></p>
+
+    <table id="events" hidden>
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th>Status</th>
+          <th>Starts</th>
+          <th>Total</th>
+          <th>Reserved</th>
+          <th>Sold</th>
+          <th>Remaining</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <script>
+      (function () {
+        var STORAGE_KEY = "gate.console.token";
+        var form = document.getElementById("token-form");
+        var tokenInput = document.getElementById("token");
+        var statusEl = document.getElementById("status");
+        var table = document.getElementById("events");
+        var tbody = table.querySelector("tbody");
+
+        // Convenience only, and scoped to this browser: the token is never sent anywhere but
+        // this API. Wrapped because storage throws outright in some privacy modes.
+        try {
+          var saved = window.localStorage.getItem(STORAGE_KEY);
+          if (saved) tokenInput.value = saved;
+        } catch (e) {
+          /* storage unavailable — the field just starts empty */
+        }
+
+        // Stock figures come from Inventory and are null when it cannot be read. Rendering that as
+        // a dash matters: showing 0 would read as sold out.
+        function text(value) {
+          return value === null || value === undefined || value === "" ? "—" : String(value);
+        }
+
+        function render(events) {
+          tbody.textContent = "";
+          events.forEach(function (event) {
+            var row = tbody.insertRow();
+            [
+              [text(event.name), false],
+              [text(event.status), false],
+              [event.startsAt ? new Date(event.startsAt).toLocaleString() : "—", false],
+              [text(event.capacity), true],
+              [text(event.reserved), true],
+              [text(event.sold), true],
+              [text(event.remaining), true],
+            ].forEach(function (pair) {
+              var cell = row.insertCell();
+              // textContent, not innerHTML: event names are organiser-supplied.
+              cell.textContent = pair[0];
+              if (pair[1]) cell.className = "num";
+            });
+          });
+          table.hidden = events.length === 0;
+          statusEl.textContent = events.length === 0 ? "No events yet." : events.length + " event(s).";
+        }
+
+        form.addEventListener("submit", function (submitEvent) {
+          submitEvent.preventDefault();
+          var token = tokenInput.value.trim();
+          statusEl.textContent = "Loading…";
+          table.hidden = true;
+
+          fetch("/v1/console/events", { headers: { Authorization: "Bearer " + token } })
+            .then(function (response) {
+              return response.json().then(function (body) {
+                if (!response.ok) {
+                  throw new Error(body && body.message ? body.message : "Request failed (" + response.status + ")");
+                }
+                return body;
+              });
+            })
+            .then(function (body) {
+              try {
+                window.localStorage.setItem(STORAGE_KEY, token);
+              } catch (e) {
+                /* storage unavailable — nothing to persist */
+              }
+              render(body.data || []);
+            })
+            .catch(function (error) {
+              statusEl.textContent = error.message;
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>
