@@ -1,6 +1,6 @@
 # ADR 0006: Reconcile an idempotent offline scan journal using stable client scan IDs
 
-- Status: Proposed
+- Status: Proposed, partially superseded by ADR 0007
 - Owner: Timilehin, Check-in
 - Date: 3 September 2026
 
@@ -13,6 +13,8 @@ The door must operate during a network outage and must not admit the same ticket
 Persist every scan to IndexedDB before reporting it as recorded. Give each scan a stable client-generated ID and retain it until the server acknowledges a result. Reconcile bounded batches. PostgreSQL uniquely records client scan IDs and applies an idempotent ticket check-in transition, returning a per-scan result that can be replayed.
 
 Allocate non-overlapping offline ticket/door partitions, or another explicitly reviewed authority rule, so two disconnected doors cannot both locally authorize the same ticket. Store only public verification material on the device; signing secrets remain server-side.
+
+> **Superseded by ADR 0007.** The partitioning sentence above no longer holds: general admission provides no basis for routing an attendee to the door that owns their ticket. Double admission across simultaneously offline doors is now detected on sync and surfaced, not prevented at the door. Everything else in this ADR stands.
 
 ## Alternatives rejected
 
