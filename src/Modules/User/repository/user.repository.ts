@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { getDb } from "core/db/postgres";
 import { IUserRepository } from "../entity/user.interface";
@@ -27,6 +27,13 @@ class UserRepository implements IUserRepository {
   async findByEmail(email: string): Promise<User | null> {
     const [user] = await getDb().select().from(UserTable).where(eq(UserTable.email, email)).limit(1);
     return user ?? null;
+  }
+
+  async clearSession(id: string, expectedSession: string): Promise<void> {
+    await getDb()
+      .update(UserTable)
+      .set({ refreshToken: null, updatedAt: new Date() })
+      .where(and(eq(UserTable.id, id), eq(UserTable.refreshToken, expectedSession)));
   }
 
   async update(id: string, data: Partial<NewUser>): Promise<User | null> {

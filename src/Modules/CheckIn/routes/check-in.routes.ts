@@ -17,7 +17,11 @@ const createCheckInRoutes = (): Router => {
   router.post("/devices", [...organizerOnly, adminLimit, validateRegisterDevice], CheckInDeviceController.register);
   router.get("/devices/event/:eventId", organizerOnly, CheckInDeviceController.listForEvent);
   router.put("/devices/:deviceId/deactivate", [...organizerOnly, adminLimit], CheckInDeviceController.deactivate);
-  router.post("/devices/auth", [validateDeviceAuth], CheckInDeviceController.authenticate);
+  router.post(
+    "/devices/auth",
+    [throttleMiddleware(rateLimitPolicies.deviceAuth), validateDeviceAuth],
+    CheckInDeviceController.authenticate,
+  );
   router.post(
     "/sync",
     [

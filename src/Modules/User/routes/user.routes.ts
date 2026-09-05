@@ -8,6 +8,5 @@ const router: Router = Router();
 router.get("/me", UserController.me);
 router.put("/me", [validateUpdateUser], UserController.updateUser);
 router.put("/change-password", [validateChangePassword], UserController.changePassword);
-router.post("/upload-profile-picture", UserController.uploadProfilePicture);
 
 export default router;

@@ -2,7 +2,7 @@ import { NextFunction, Request, RequestHandler, Response } from "express";
 
 import { ERole } from "../entities/enums";
 import { CustomError } from "../../global/errors";
-import { JwtPayload, isValidateJwtToken } from "../utils/jwt-handler";
+import AuthService from "Modules/Auth/service/auth.service";
 
 export const rolePolicies = {
   organizer: [ERole.STAFF, ERole.ADMIN],
@@ -25,22 +25,13 @@ class AuthGuardMiddleware {
         throw new CustomError(401, "Unauthorized", "Authorization token not provided");
       }
 
-      let decodedToken: JwtPayload;
-      try {
-        decodedToken = isValidateJwtToken(token) as JwtPayload;
-      } catch (err) {
-        throw new CustomError(401, "Unauthorized", "Invalid token");
-      }
-
-      req.jwtPayload = decodedToken;
+      req.jwtPayload = await AuthService.authenticate(token);
       next();
     } catch (error) {
       if (error instanceof CustomError) {
         return next(error);
       }
-      return next(
-        new CustomError(500, "InternalServer", error instanceof Error ? error.message : "JWT authentication error"),
-      );
+      return next(new CustomError(500, "InternalServer", "Authentication unavailable"));
     }
   }
 

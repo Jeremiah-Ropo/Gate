@@ -28,7 +28,3 @@ API and worker deploy/restart independently and require separate health evidence
 ## Proof
 
 Start/stop API and worker independently. Deliver one job twice and observe one domain transition. Stop Redis, create an overdue database state through a test fixture, restore the worker, and verify sweep recovery. Correlate initiating request and worker logs.
-
-## AI disclosure
-
-AI helped structure this draft and inspect the existing worker lifecycle. Ibukun must validate the process, failure, retry, and observability decisions.

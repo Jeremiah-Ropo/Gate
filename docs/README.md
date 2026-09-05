@@ -8,7 +8,7 @@ These documents are review drafts until their owners and assigned reviewers acce
 | -------------- | ------------------------------ | -------------------------------------------- |
 | Design doc     | Each slice owner               | `docs/slices/`                               |
 | ADR            | Each slice owner               | `docs/adr/`                                  |
-| Bug report     | Each assigned breaker          | Added during break week                      |
+| Bug report     | Each assigned breaker          | Added during the break phase                 |
 | Peer letter    | Each engineer                  | Submitted privately, not stored in this repo |
 | System diagram | Team                           | `docs/team/system-design.md`                 |
 | Runbook        | Team                           | `docs/team/runbook.md`                       |
