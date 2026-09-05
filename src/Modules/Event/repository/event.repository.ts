@@ -30,7 +30,7 @@ class EventRepository implements IEventRepository {
   }
 
   async list(): Promise<Event[]> {
-    return getDb().select().from(EventTable).orderBy(desc(EventTable.startDate));
+    return getDb().select().from(EventTable).orderBy(desc(EventTable.starts_at));
   }
 
   async update(id: string, data: Partial<NewEvent>): Promise<Event | null> {

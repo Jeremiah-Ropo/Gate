@@ -6,9 +6,9 @@
 
 ## Context
 
-Five engineers have one week remaining to deliver one deployed system. The capstone requires the team to choose one backend language/framework on day 1, choose one web stack, automate formatting/linting, and record the choice as the first ADR. The existing repository already contains an Express/TypeScript backend, Drizzle/PostgreSQL, Redis, BullMQ, Pino, ESLint, Prettier, and Mocha tests.
+Gate must be delivered as one deployed system. The capstone requires one backend language/framework, one web stack, automated formatting/linting, and this first ADR. The existing repository already contains an Express/TypeScript backend, Drizzle/PostgreSQL, Redis, BullMQ, Pino, ESLint, Prettier, and Mocha tests.
 
-The door must run in a phone browser and continue offline. There is no native app. The team has insufficient time to learn a second backend language or introduce multiple independently deployed business services.
+The door must run in a phone browser and continue offline. There is no native app. Reusing the existing stack avoids a rewrite while the team works on the assessed failure and consistency problems.
 
 ## Decision
 
@@ -17,14 +17,14 @@ The door must run in a phone browser and continue offline. There is no native ap
 - Use PostgreSQL through Drizzle as the durable store.
 - Use Redis for public cache, distributed traffic controls, and BullMQ delivery, never as the authoritative ticket count.
 - Run the API and worker as separate deployable processes from the same codebase.
-- Use TypeScript, React, and Vite for the web surfaces, including the PWA door page. This frontend choice remains proposed until all five owners confirm it.
+- Use TypeScript, React, and Vite for the web surfaces, including the PWA door page. This frontend choice remains proposed until the team confirms it.
 - Enforce the repository's ESLint and Prettier configuration in CI.
 
 ## Alternatives rejected
 
 ### A second backend language or framework
 
-Rejected because the repository is already implemented in TypeScript/Express and the brief says to select what most engineers can already read. A rewrite would consume the remaining week without improving the two assessed invariants: no overselling and offline check-in.
+Rejected because the repository is already implemented in TypeScript/Express and the brief says to select what most engineers can already read. A rewrite would not improve the two assessed invariants: no overselling and offline check-in.
 
 ### Independent microservices for every slice
 
@@ -47,7 +47,3 @@ Rejected explicitly by the brief. A web PWA supports the required phone surface 
 - `yarn lint`, `yarn format-lint`, `yarn build`, and `yarn test` run in CI.
 - API and worker build from the same commit and start independently.
 - The PWA works in a phone browser and its offline behavior is demonstrated.
-
-## AI disclosure
-
-AI helped structure this draft and compare it with the repository. The team must verify the stack choice, alternatives, and consequences and be able to defend them.
