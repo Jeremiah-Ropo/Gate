@@ -4,6 +4,17 @@ import request from "supertest";
 import { createApp } from "../src/core/App";
 
 describe("Platform API runtime", () => {
+  it("bounds an unresponsive readiness dependency", async () => {
+    const app = createApp({ readinessCheck: () => new Promise(() => undefined) });
+    const response = await request(app).get("/health/ready").timeout({ response: 3000 });
+    expect(response.status).to.equal(503);
+  });
+
+  it("returns a server-generated request ID for correlation", async () => {
+    const response = await request(createApp()).get("/health/live");
+    expect(response.headers["x-request-id"]).to.match(/^[0-9a-f-]{36}$/);
+  });
+
   it("reports liveness without consulting dependencies", async () => {
     let readinessChecks = 0;
     const app = createApp({
