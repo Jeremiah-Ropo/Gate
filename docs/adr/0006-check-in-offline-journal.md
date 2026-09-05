@@ -14,7 +14,7 @@ Persist every scan to IndexedDB before reporting it as recorded. Give each scan 
 
 Allocate non-overlapping offline ticket/door partitions, or another explicitly reviewed authority rule, so two disconnected doors cannot both locally authorize the same ticket. Store only public verification material on the device; signing secrets remain server-side.
 
-> **Superseded by ADR 0007.** The partitioning sentence above no longer holds: general admission provides no basis for routing an attendee to the door that owns their ticket. Double admission across simultaneously offline doors is now detected on sync and surfaced, not prevented at the door. Everything else in this ADR stands.
+> **Superseded by ADR 0007.** The partitioning sentence above no longer holds: general admission provides no basis for routing an attendee to the door that owns their ticket. Double admission is now detected on sync and surfaced, not prevented at the door — and it is not limited to disconnected doors, since a door admits on its local decision, so two online doors can also overlap before either has synced. Everything else in this ADR stands.
 
 ## Alternatives rejected
 
@@ -25,8 +25,10 @@ Allocate non-overlapping offline ticket/door partitions, or another explicitly r
 
 ## Consequences
 
-Offline decisions are limited by the downloaded dataset and partition. Device registration, revocation, key rotation, clock skew, dataset freshness, and retention become explicit operational concerns. Replaying a batch is safe; a partial response leaves unacknowledged scans pending.
+Offline decisions are limited by the downloaded dataset. Clock skew, dataset freshness, and retention become explicit operational concerns. Replaying a batch is safe; a partial response leaves unacknowledged scans pending.
+
+> Partition wording removed, per ADR 0007. Device registration, revocation and key rotation are also gone: a door device is no longer registered hardware but a logged-in staff member with an active event membership, so access is withdrawn by changing that membership.
 
 ## Proof
 
-Test duplicate online calls, repeated batches, kill-before-send, kill-after-send, partial response, two-door conflict, revoked device, key rotation, and delayed server response.
+Test duplicate online calls, repeated batches, kill-before-send, kill-after-send, partial response, two-door conflict, revoked membership, and delayed server response. Key rotation is no longer in scope: the device holds no credential to rotate.
