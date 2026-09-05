@@ -35,6 +35,14 @@ export const JWT_REFRESH_EXPIRATION = process.env.JWT_REFRESH_EXPIRATION || "7d"
 // this to COOKIE_SECRET.
 export const DEVICE_JWT_SECRET = process.env.DEVICE_JWT_SECRET;
 
+// Ed25519 key pair used to sign ticket QR payloads. Base64-encoded PEM; generate with
+// `yarn setup:ticket-keys`. The private key signs at issuance and must never be shipped to
+// a door device — only PUBLIC_CHECKIN_KEY goes out in the check-in session manifest.
+export const TICKET_SIGNING = {
+  PRIVATE_KEY: process.env.PRIVATE_CHECKIN_KEY,
+  PUBLIC_KEY: process.env.PUBLIC_CHECKIN_KEY,
+};
+
 export const CLOUDINARY = {
   CLOUD_NAME: process.env.CLOUD_NAME,
   API_KEY: process.env.API_KEY,
