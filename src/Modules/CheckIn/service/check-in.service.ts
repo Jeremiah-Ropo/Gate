@@ -37,6 +37,7 @@ class CheckInService implements ICheckInService {
     if (!ticket) {
       await this.repository.create({
         ticketId: null,
+        eventId,
         scannedCode: scan.ticketCode,
         deviceId,
         status: ECheckInStatus.INVALID,
@@ -55,6 +56,7 @@ class CheckInService implements ICheckInService {
     if (ticket.eventId !== eventId) {
       await this.repository.create({
         ticketId: ticket.id,
+        eventId,
         scannedCode: scan.ticketCode,
         deviceId,
         status: ECheckInStatus.DENIED,
@@ -76,6 +78,7 @@ class CheckInService implements ICheckInService {
     if (alreadyAdmitted) {
       await this.repository.create({
         ticketId: ticket.id,
+        eventId,
         scannedCode: scan.ticketCode,
         deviceId,
         status: ECheckInStatus.DUPLICATE,
@@ -94,6 +97,7 @@ class CheckInService implements ICheckInService {
     if (ticket.status !== ETicketStatus.VALID) {
       await this.repository.create({
         ticketId: ticket.id,
+        eventId,
         scannedCode: scan.ticketCode,
         deviceId,
         status: ECheckInStatus.DENIED,
@@ -112,6 +116,7 @@ class CheckInService implements ICheckInService {
     // The success row is the admission. Nothing is written back to the ticket.
     await this.repository.create({
       ticketId: ticket.id,
+      eventId,
       scannedCode: scan.ticketCode,
       deviceId,
       status: ECheckInStatus.SUCCESS,
