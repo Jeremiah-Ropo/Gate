@@ -7,7 +7,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "types": ["node", "express", "multer"],
+    "types": ["node", "express", "multer", "mocha"],
     "moduleResolution": "node",
     "removeComments": true,
     "allowSyntheticDefaultImports": true,

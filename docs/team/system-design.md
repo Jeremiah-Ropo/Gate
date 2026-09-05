@@ -47,7 +47,3 @@ The bold path is the ticket-claim hot path. PostgreSQL, not Redis or BullMQ, dec
 ## Cross-slice boundary
 
 Inventory owns claim correctness. Platform owns authentication, traffic controls, queue runtime, deployment, logs, and metrics. Events and console owns event publication/read services and their cache contract. Public browse owns the anonymous API/surface. Check-in owns the online/offline check-in contract and chairs the contract review.
-
-## AI disclosure
-
-AI helped convert the team canvas into this draft. The team must confirm the diagram matches the implemented system after every material change.
