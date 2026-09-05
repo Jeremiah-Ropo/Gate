@@ -1,6 +1,6 @@
 # Gate integration contract
 
-- Status: Proposed for all five owners
+- Status: Proposed for team review
 - Last updated: 3 September 2026
 
 ## Frozen decisions
@@ -33,7 +33,7 @@ Every mutation documents its idempotency key, retry behavior, timeout behavior, 
 - Reservation-window duration. It must exceed the 30-second fake-payment hang and remain configurable.
 - Redis fail-open/fail-closed behavior for each endpoint category.
 - Deployment provider and secret owner.
-- Review assignments and ADR numbering.
+- Review assignments.
 - Whether staff/admin privileges need event-level membership rather than global scope.
 - Final React/Vite frontend choice in ADR 0001.
 
