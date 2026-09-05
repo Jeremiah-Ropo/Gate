@@ -25,7 +25,7 @@ class TicketRepository implements ITicketRepository {
   }
 
   async findByCode(code: string): Promise<Ticket | null> {
-    const [ticket] = await getDb().select().from(TicketTable).where(eq(TicketTable.code, code)).limit(1);
+    const [ticket] = await getDb().select().from(TicketTable).where(eq(TicketTable.qrPayload, code)).limit(1);
     return ticket ?? null;
   }
 

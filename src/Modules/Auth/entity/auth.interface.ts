@@ -1,11 +1,10 @@
-import { User } from "Modules/User/entity/user.model";
+import { PublicUser } from "Modules/User/entity/user.view";
 
 export interface IRegisterInputDTO {
   firstName: string;
   lastName: string;
   email: string;
   password: string;
-  phoneNumber?: string;
 }
 
 export interface ILoginInputDTO {
@@ -16,7 +15,7 @@ export interface ILoginInputDTO {
 export interface ILoginOutputDTO {
   token: string;
   refreshToken: string;
-  user: Omit<User, "password">;
+  user: PublicUser;
 }
 
 export interface ILogoutDTO {

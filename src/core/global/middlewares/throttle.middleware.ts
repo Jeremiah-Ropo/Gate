@@ -22,6 +22,7 @@ const oneMinute = 60 * 1000;
 export const rateLimitPolicies = {
   authIp: { name: "auth-ip", limit: 10, windowMs: oneMinute, identity: "ip" },
   authAccount: { name: "auth-account", limit: 10, windowMs: oneMinute, identity: "email" },
+  deviceAuth: { name: "device-auth", limit: 10, windowMs: oneMinute, identity: "ip" },
   standardUser: { name: "standard-user", limit: 60, windowMs: oneMinute, identity: "user" },
   claim: { name: "claim", limit: 5, windowMs: oneMinute, identity: "user" },
   adminMutation: { name: "admin-mutation", limit: 60, windowMs: oneMinute, identity: "user" },
