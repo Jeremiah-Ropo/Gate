@@ -16,6 +16,7 @@
     "test": "mocha --require ts-node/register --require tsconfig-paths/register 'test/**/*.test.ts' --timeout 20000 --exit",
     "setup": "node scripts/setup.mjs make:certs ./dist/core/.certs",
     "setup:dev": "node scripts/setup.mjs make:certs ./src/core/.certs",
+    "setup:ticket-keys": "node scripts/setup.mjs make:ticket-keys",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "ts-node -r tsconfig-paths/register scripts/migrate.ts",
     "db:push": "drizzle-kit push",
