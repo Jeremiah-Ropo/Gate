@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { createHash } from "crypto";
 import express from "express";
 import request from "supertest";
 
@@ -23,16 +24,15 @@ describe("Capstone scope", () => {
       firstName: "Ada",
       lastName: "Lovelace",
       email: "ada@example.com",
-      phoneNumber: null,
-      password: "hashed-password",
+      passwordHash: "hashed-password",
       role: "attendee",
-      profilePicture: null,
       isVerified: true,
       refreshToken: null,
       createdAt: new Date("2026-09-03T00:00:00.000Z"),
       updatedAt: new Date("2026-09-03T00:00:00.000Z"),
     };
     const users: IUserRepository = {
+      clearSession: async () => undefined,
       findByEmail: async () => null,
       findById: async () => user,
       create: async (data) => {
@@ -53,8 +53,9 @@ describe("Capstone scope", () => {
       password: "correct-horse",
     });
 
-    expect(created).to.include({ email: "ada@example.com", password: "hashed-password", isVerified: true });
-    expect(updated?.refreshToken).to.equal(result.refreshToken);
+    expect(created).to.include({ email: "ada@example.com", passwordHash: "hashed-password", isVerified: true });
+    expect(updated?.refreshToken).to.equal(createHash("sha256").update(result.refreshToken).digest("hex"));
+    expect(result.user).not.to.have.property("passwordHash");
     expect(result.user).not.to.have.property("password");
     expect(result).to.have.keys("token", "refreshToken", "user");
   });
