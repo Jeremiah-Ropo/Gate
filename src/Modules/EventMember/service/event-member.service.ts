@@ -2,18 +2,32 @@ import { Service } from "typedi";
 
 import { EEventMemberRole, EMembershipStatus, ERole } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
+import { IEventRepository } from "Modules/Event/entity/event.interface";
 import eventRepository from "Modules/Event/repository/event.repository";
+import { IUserRepository } from "Modules/User/entity/user.interface";
 import userRepository from "Modules/User/repository/user.repository";
 import eventMemberRepository from "../repository/event-member.repository";
-import { IAddMemberDTO, IEventMemberService, IMyEventRow, IRequester } from "../entity/event-member.interface";
+import {
+  IAddMemberDTO,
+  IEventMemberRepository,
+  IEventMemberService,
+  IMyEventRow,
+  IRequester,
+} from "../entity/event-member.interface";
 import { EventMember } from "../entity/event-member.model";
 
 @Service()
-class EventMemberService implements IEventMemberService {
+export class EventMemberService implements IEventMemberService {
   private static instance: IEventMemberService;
-  private readonly repository = eventMemberRepository;
-  private readonly events = eventRepository;
-  private readonly users = userRepository;
+
+  // Dependencies default to the module singletons, so getInstance() and every caller are
+  // unchanged. They are constructor arguments only so a test can supply stubs and assert
+  // the authorization rules without a database.
+  constructor(
+    private readonly repository: IEventMemberRepository = eventMemberRepository,
+    private readonly events: IEventRepository = eventRepository,
+    private readonly users: IUserRepository = userRepository,
+  ) {}
 
   public static getInstance(): IEventMemberService {
     if (!this.instance) {
