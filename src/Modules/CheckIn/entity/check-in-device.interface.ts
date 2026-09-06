@@ -1,3 +1,4 @@
+import type { DbTransaction } from "core/db/postgres";
 import { CheckInDevice, NewCheckInDevice } from "./check-in-device.model";
 
 export interface IRegisterDeviceDTO {
@@ -31,6 +32,7 @@ export interface ICheckInDeviceService {
 }
 
 export interface ICheckInDeviceRepository {
+  withTx(tx: DbTransaction): ICheckInDeviceRepository;
   create(data: NewCheckInDevice): Promise<CheckInDevice>;
   findById(id: string): Promise<CheckInDevice | null>;
   findByDeviceKey(deviceKey: string): Promise<CheckInDevice | null>;
