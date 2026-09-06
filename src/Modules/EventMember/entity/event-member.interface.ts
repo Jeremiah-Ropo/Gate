@@ -6,6 +6,13 @@ export interface IAddMemberDTO {
   role?: EEventMemberRole;
 }
 
+// The caller, for ownership checks. Taken from req.jwtPayload rather than trusting an id
+// in the body — a caller must not be able to name themselves as somebody else.
+export interface IRequester {
+  id: string;
+  role: string;
+}
+
 // What a door staff member sees in their event list: the membership plus enough of the
 // event to tell one from another without a second request.
 //
@@ -22,10 +29,10 @@ export interface IMyEventRow {
 }
 
 export interface IEventMemberService {
-  addMember(eventId: string, payload: IAddMemberDTO): Promise<EventMember>;
-  listForEvent(eventId: string): Promise<EventMember[]>;
+  addMember(eventId: string, requester: IRequester, payload: IAddMemberDTO): Promise<EventMember>;
+  listForEvent(eventId: string, requester: IRequester): Promise<EventMember[]>;
   listMyEvents(userId: string): Promise<IMyEventRow[]>;
-  revoke(eventId: string, userId: string): Promise<EventMember>;
+  revoke(eventId: string, userId: string, requester: IRequester): Promise<EventMember>;
   isActiveMember(eventId: string, userId: string): Promise<boolean>;
 }
 

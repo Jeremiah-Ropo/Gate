@@ -1,11 +1,11 @@
 import { Service } from "typedi";
 
-import { EEventMemberRole, EMembershipStatus } from "core/global/entities/enums";
+import { EEventMemberRole, EMembershipStatus, ERole } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
 import eventRepository from "Modules/Event/repository/event.repository";
 import userRepository from "Modules/User/repository/user.repository";
 import eventMemberRepository from "../repository/event-member.repository";
-import { IAddMemberDTO, IEventMemberService, IMyEventRow } from "../entity/event-member.interface";
+import { IAddMemberDTO, IEventMemberService, IMyEventRow, IRequester } from "../entity/event-member.interface";
 import { EventMember } from "../entity/event-member.model";
 
 @Service()
@@ -22,11 +22,29 @@ class EventMemberService implements IEventMemberService {
     return this.instance;
   }
 
-  async addMember(eventId: string, payload: IAddMemberDTO): Promise<EventMember> {
+  // Being staff somewhere is not permission to staff *this* event. Without this check any
+  // staff account could put themselves on any organizer's door, which is a wider hole than
+  // the one event membership exists to close.
+  //
+  // Duplicated rather than reusing EventService.assertOwnership, which is private. Making
+  // it public would mean editing the event slice for a caller they do not have.
+  private async assertManagesEvent(eventId: string, requester: IRequester) {
     const event = await this.events.findById(eventId);
     if (!event) {
       throw new CustomError(404, "NotFound", "Event not found");
     }
+
+    // Global admins pass without owning the event, matching requireEventMember. Staff do
+    // not: they must be the organizer who created it.
+    if (requester.role !== ERole.ADMIN && event.createdBy !== requester.id) {
+      throw new CustomError(403, "Forbidden", "You do not manage this event");
+    }
+
+    return event;
+  }
+
+  async addMember(eventId: string, requester: IRequester, payload: IAddMemberDTO): Promise<EventMember> {
+    await this.assertManagesEvent(eventId, requester);
 
     const user = await this.users.findById(payload.userId);
     if (!user) {
@@ -60,7 +78,8 @@ class EventMemberService implements IEventMemberService {
     });
   }
 
-  async listForEvent(eventId: string): Promise<EventMember[]> {
+  async listForEvent(eventId: string, requester: IRequester): Promise<EventMember[]> {
+    await this.assertManagesEvent(eventId, requester);
     return this.repository.listByEvent(eventId);
   }
 
@@ -68,7 +87,9 @@ class EventMemberService implements IEventMemberService {
     return this.repository.listActiveEventsForUser(userId);
   }
 
-  async revoke(eventId: string, userId: string): Promise<EventMember> {
+  async revoke(eventId: string, userId: string, requester: IRequester): Promise<EventMember> {
+    await this.assertManagesEvent(eventId, requester);
+
     const member = await this.repository.findByEventAndUser(eventId, userId);
     if (!member) {
       throw new CustomError(404, "NotFound", "This user is not a member of this event");

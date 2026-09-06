@@ -3,11 +3,7 @@ import { Router } from "express";
 import { ERole } from "core/global/entities/enums";
 import AuthGuardMiddleware from "core/global/middlewares/auth-guard.middleware";
 import EventMemberController from "../controller/event-member.controller";
-import {
-  validateAddMember,
-  validateEventIdParam,
-  validateRevokeMember,
-} from "../validations/event-member.validations";
+import { validateAddMember, validateEventIdParam, validateRevokeMember } from "../validations/event-member.validations";
 
 const router: Router = Router();
 const organizerOnly = AuthGuardMiddleware.authorize([ERole.STAFF, ERole.ADMIN]);
