@@ -1,3 +1,4 @@
+import { type DbTransaction } from "core/db/postgres";
 import { EEventMemberRole } from "core/global/entities/enums";
 import { EventMember, NewEventMember } from "./event-member.model";
 
@@ -37,6 +38,7 @@ export interface IEventMemberService {
 }
 
 export interface IEventMemberRepository {
+  withTx(tx: DbTransaction): IEventMemberRepository;
   create(data: NewEventMember): Promise<EventMember>;
   findById(id: string): Promise<EventMember | null>;
   findByEventAndUser(eventId: string, userId: string): Promise<EventMember | null>;

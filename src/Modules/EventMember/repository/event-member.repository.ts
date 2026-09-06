@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 
-import { getDb } from "core/db/postgres";
+import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { EMembershipStatus } from "core/global/entities/enums";
 import { EventTable } from "Modules/Event/entity/event.model";
 import { IEventMemberRepository, IMyEventRow } from "../entity/event-member.interface";
@@ -9,6 +9,8 @@ import { EventMember, EventMemberTable, NewEventMember } from "../entity/event-m
 class EventMemberRepository implements IEventMemberRepository {
   private static instance: IEventMemberRepository;
 
+  constructor(private readonly executor?: DbExecutor) {}
+
   public static getInstance(): IEventMemberRepository {
     if (!this.instance) {
       this.instance = new EventMemberRepository();
@@ -16,18 +18,26 @@ class EventMemberRepository implements IEventMemberRepository {
     return this.instance;
   }
 
+  withTx(tx: DbTransaction): IEventMemberRepository {
+    return new EventMemberRepository(tx);
+  }
+
+  private get db(): DbExecutor {
+    return this.executor ?? getDb();
+  }
+
   async create(data: NewEventMember): Promise<EventMember> {
-    const [member] = await getDb().insert(EventMemberTable).values(data).returning();
+    const [member] = await this.db.insert(EventMemberTable).values(data).returning();
     return member;
   }
 
   async findById(id: string): Promise<EventMember | null> {
-    const [member] = await getDb().select().from(EventMemberTable).where(eq(EventMemberTable.id, id)).limit(1);
+    const [member] = await this.db.select().from(EventMemberTable).where(eq(EventMemberTable.id, id)).limit(1);
     return member ?? null;
   }
 
   async findByEventAndUser(eventId: string, userId: string): Promise<EventMember | null> {
-    const [member] = await getDb()
+    const [member] = await this.db
       .select()
       .from(EventMemberTable)
       .where(and(eq(EventMemberTable.eventId, eventId), eq(EventMemberTable.userId, userId)))
@@ -36,7 +46,7 @@ class EventMemberRepository implements IEventMemberRepository {
   }
 
   async listByEvent(eventId: string): Promise<EventMember[]> {
-    return getDb()
+    return this.db
       .select()
       .from(EventMemberTable)
       .where(eq(EventMemberTable.eventId, eventId))
@@ -47,7 +57,7 @@ class EventMemberRepository implements IEventMemberRepository {
   // needs its name and start time, and a second round trip per event to get them would be
   // the classic N+1.
   async listActiveEventsForUser(userId: string): Promise<IMyEventRow[]> {
-    return getDb()
+    return this.db
       .select({
         eventId: EventTable.id,
         eventName: EventTable.name,
@@ -63,7 +73,7 @@ class EventMemberRepository implements IEventMemberRepository {
   }
 
   async update(id: string, data: Partial<NewEventMember>): Promise<EventMember | null> {
-    const [member] = await getDb()
+    const [member] = await this.db
       .update(EventMemberTable)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(EventMemberTable.id, id))
