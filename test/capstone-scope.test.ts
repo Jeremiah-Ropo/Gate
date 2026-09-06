@@ -32,6 +32,7 @@ describe("Capstone scope", () => {
       updatedAt: new Date("2026-09-03T00:00:00.000Z"),
     };
     const users: IUserRepository = {
+      withTx: () => users,
       clearSession: async () => undefined,
       findByEmail: async () => null,
       findById: async () => user,
