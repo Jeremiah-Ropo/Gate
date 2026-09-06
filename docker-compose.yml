@@ -1,11 +1,17 @@
-version: "3.9"
-
 services:
   api:
     build: .
     ports:
       - "8000:8000"
-    env_file: .env
+    env_file: ${GATE_ENV_FILE:-.env}
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build: .
+    command: ["node", "dist/worker.js"]
+    env_file: ${GATE_ENV_FILE:-.env}
     depends_on:
       - postgres
       - redis
