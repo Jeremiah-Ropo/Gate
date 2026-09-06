@@ -4,7 +4,6 @@ import { Service } from "typedi";
 import { CustomError } from "core/global/errors";
 import { TICKET_CODE_PREFIX } from "core/global/entities/constants";
 import { ETicketStatus } from "core/global/entities/enums";
-import NotificationPublisher from "core/global/shared/queue/publisher/notification.publisher";
 import { generateQrCodeDataUrl } from "core/global/utils/qrcode.utils";
 import eventRepository from "Modules/Event/repository/event.repository";
 import ticketRepository from "../repository/ticket.repository";
@@ -49,11 +48,6 @@ class TicketService implements ITicketService {
       code,
       qrCodeUrl,
       status: ETicketStatus.VALID,
-    });
-
-    await new NotificationPublisher().publish({
-      type: "ticket-issued",
-      data: { email: payload.ownerEmail, name: payload.ownerName, eventName: event.name, qrCodeUrl },
     });
 
     return ticket;

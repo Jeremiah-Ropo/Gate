@@ -1,10 +1,8 @@
 import { Worker } from "bullmq";
 
 import logger from "core/global/utils/logger";
-import { startNotificationWorker } from "./notification.worker";
-
 export const startAllWorkers = (): Worker[] => {
-  const workers = [startNotificationWorker()];
+  const workers: Worker[] = [];
   logger.info({ workerCount: workers.length }, "All queue workers started");
   return workers;
 };
