@@ -35,7 +35,7 @@ ADR 0006 stands in every other respect. Its journal, its stable client scan IDs,
 
 ## Consequences
 
-The system guarantees at most one *recorded* successful check-in per ticket, and a visible, attributable conflict for any second attempt. It does not guarantee at most one *physical* admission per ticket, online or offline. That distinction must be stated plainly to the organizer rather than implied by the interface.
+The system guarantees at most one _recorded_ successful check-in per ticket, and a visible, attributable conflict for any second attempt. It does not guarantee at most one _physical_ admission per ticket, online or offline. That distinction must be stated plainly to the organizer rather than implied by the interface.
 
 A door must never discard a local admission it has recorded. On sync the device merges the server's admitted set with its own, rather than replacing it: a local success the server has not yet acknowledged is still an admission, and forgetting it would let the same ticket go green again — a double admission caused by the sync itself. A success is written to durable storage before the screen shows it, and survives the app being killed.
 

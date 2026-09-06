@@ -13,7 +13,7 @@ Check-in owns everything that decides whether a person walks through the door: t
 
 **Authenticity is proved by a signature, not by a lookup.** At issuance the server signs the ticket id, the event id and the holder's name with an Ed25519 private key it alone holds. The signed string is stored in `tickets.qr_payload` and rendered as the QR. A door holds only the matching public key, which can confirm a ticket is genuine but cannot produce one. A shared secret was rejected for the same reason: door devices belong to volunteers, and anything able to verify would also be able to forge.
 
-Because authenticity is self-contained in the code, the door needs no ticket list. On **start check-in** it fetches a manifest containing the public key and only the two sets of *exceptions*: tickets already admitted (`check_ins` where `status = 'success'`), and tickets that are no longer honourable (`tickets` where `status != 'valid'`). Any other correctly signed ticket for this event is good. The manifest is therefore bounded by exceptions rather than by attendance, and holds nothing that could forge a ticket.
+Because authenticity is self-contained in the code, the door needs no ticket list. On **start check-in** it fetches a manifest containing the public key and only the two sets of _exceptions_: tickets already admitted (`check_ins` where `status = 'success'`), and tickets that are no longer honourable (`tickets` where `status != 'valid'`). Any other correctly signed ticket for this event is good. The manifest is therefore bounded by exceptions rather than by attendance, and holds nothing that could forge a ticket.
 
 **A door device is a person, not a registry entry.** Door staff are users linked to an event through `event_members` with `status = 'active'`. An organizer adds them directly and the membership is usable immediately; access is withdrawn by setting `revoked`. This replaces the `check_in_devices` registry, which required storing a long-lived secret on a volunteer's phone and made registration, revocation and key rotation standing operational work for no additional guarantee.
 
@@ -63,7 +63,7 @@ Express routes under `/v1`, mounted from `src/core/Routers.ts`. All door routes 
 
 `event_members` links a user to an event with a role and a status (`active` | `revoked`), unique on `(event_id, user_id)`. Revoked rather than deleted, so the scan log keeps a member to point at and the event keeps a record of everyone who was ever able to work its door.
 
-Check-in state is deliberately not a column on `tickets`. `tickets.status` says what a ticket *is*; `check_ins` says what was *done* with it, and both can be true at once — a ticket may be refunded after having been scanned. "Is ticket X admitted?" is `exists check_ins where ticket_id = X and status = 'success'`. Keeping the fact here also means this slice writes no columns on a table another slice owns.
+Check-in state is deliberately not a column on `tickets`. `tickets.status` says what a ticket _is_; `check_ins` says what was _done_ with it, and both can be true at once — a ticket may be refunded after having been scanned. "Is ticket X admitted?" is `exists check_ins where ticket_id = X and status = 'success'`. Keeping the fact here also means this slice writes no columns on a table another slice owns.
 
 ## Failure and test plan
 
