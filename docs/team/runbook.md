@@ -41,6 +41,13 @@
 
 Escalate immediately if capacity may have been exceeded, a ticket may have been admitted twice, or offline reconciliation loses scans. After recovery, record symptom, measurements, root cause, what the evidence contradicted, correction, and prevention. Create the required team post-mortem only for an actual incident.
 
-## Before acceptance
+## Render operations
 
-Replace every generic check above with the deployed provider's exact command, dashboard/query link, rollback procedure, and owner. A skeleton is not a completed runbook.
+- API health: open the `gate-api` service and check `/health/live` and `/health/ready`.
+- API evidence: filter the `gate-api` logs by request ID and deployed commit.
+- Worker evidence: inspect `gate-worker` logs for startup, job failure, and graceful-shutdown messages.
+- Data evidence: inspect `gate-db` connections/storage and `gate-queue` connections/memory in their Metrics pages.
+- Rollback: redeploy the previous successful API and worker revisions. Do not reverse a migration without its reviewed recovery procedure.
+- Deployment owner: Platform owner. Domain failures remain owned by the engineer responsible for that slice.
+
+The complete deployment and acceptance procedure is in `docs/deployment/render.md`.

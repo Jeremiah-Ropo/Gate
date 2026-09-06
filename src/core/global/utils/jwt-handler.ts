@@ -6,8 +6,9 @@ import path from "path";
 import { JWT_EXPIRATION, JWT_REFRESH_EXPIRATION } from "../config";
 import { CustomError } from "../errors";
 
-const secret = fs.readFileSync(path.join(__dirname, "../../.certs/private-key.pem"));
-const publicKey = fs.readFileSync(path.join(__dirname, "../../.certs/public-key.pem"));
+const keyDirectory = process.env.NODE_ENV === "production" ? "/etc/secrets" : path.join(__dirname, "../../.certs");
+const secret = fs.readFileSync(path.join(keyDirectory, "private-key.pem"));
+const publicKey = fs.readFileSync(path.join(keyDirectory, "public-key.pem"));
 
 export type JwtPayload = {
   id: string;

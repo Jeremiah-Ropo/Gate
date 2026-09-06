@@ -1,0 +1,97 @@
+previews:
+  generation: off
+
+services:
+  - type: web
+    name: gate-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    staticPublishPath: dist
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: gate-api
+    runtime: node
+    region: frankfurt
+    plan: starter
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    preDeployCommand: yarn db:migrate
+    startCommand: yarn start:api
+    autoDeployTrigger: off
+    healthCheckPath: /health/ready
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gate-db
+          property: connectionString
+      - key: REDIS_CONNECTION_STRING
+        fromService:
+          name: gate-queue
+          type: keyvalue
+          property: connectionString
+      - key: JWT_EXPIRATION
+        value: 15m
+      - key: JWT_REFRESH_EXPIRATION
+        value: 7d
+      - key: SALT
+        value: "12"
+      - key: DEVICE_JWT_SECRET
+        generateValue: true
+      - key: LOG_LEVEL
+        value: info
+      - key: CLOUD_NAME
+        sync: false
+      - key: API_KEY
+        sync: false
+      - key: API_SECRET
+        sync: false
+
+  - type: worker
+    name: gate-worker
+    runtime: node
+    region: frankfurt
+    plan: starter
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    startCommand: yarn start:worker
+    autoDeployTrigger: off
+    maxShutdownDelaySeconds: 60
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gate-db
+          property: connectionString
+      - key: REDIS_CONNECTION_STRING
+        fromService:
+          name: gate-queue
+          type: keyvalue
+          property: connectionString
+      - key: LOG_LEVEL
+        value: info
+
+  - type: keyvalue
+    name: gate-queue
+    region: frankfurt
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+databases:
+  - name: gate-db
+    region: frankfurt
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+    databaseName: gate
+    user: gate
+    ipAllowList: []
+    storageAutoscalingEnabled: true
