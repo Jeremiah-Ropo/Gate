@@ -1,4 +1,5 @@
 import { EEventStatus } from "core/global/entities/enums";
+import type { DbTransaction } from "core/db/postgres";
 import { Event, NewEvent } from "./event.model";
 
 export interface ICreateEventDTO {
@@ -36,6 +37,7 @@ export interface IEventService {
 }
 
 export interface IEventRepository {
+  withTx(tx: DbTransaction): IEventRepository;
   create(data: NewEvent): Promise<Event>;
   findById(id: string): Promise<Event | null>;
   findBySlug(slug: string): Promise<Event | null>;
