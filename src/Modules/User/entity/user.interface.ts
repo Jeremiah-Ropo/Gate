@@ -1,12 +1,12 @@
 import { ERole } from "core/global/entities/enums";
 import type { DbTransaction } from "core/db/postgres";
 import { NewUser, User } from "./user.model";
+import { PublicUser } from "./user.view";
 
 export interface ICreateUserDTO {
   firstName: string;
   lastName: string;
   email: string;
-  phoneNumber?: string;
   password: string;
   role?: ERole;
 }
@@ -14,16 +14,13 @@ export interface ICreateUserDTO {
 export interface IUpdateUserDTO {
   firstName?: string;
   lastName?: string;
-  phoneNumber?: string;
-  profilePicture?: string;
 }
 
 export interface IUserService {
-  findById(id: string): Promise<User>;
-  findByEmail(email: string): Promise<User>;
-  updateUser(userId: string, data: IUpdateUserDTO): Promise<User>;
-  changePassword(id: string, oldPassword: string, newPassword: string): Promise<User>;
-  updateProfilePicture(userId: string, tempFilePath: string): Promise<User>;
+  findById(id: string): Promise<PublicUser>;
+  findByEmail(email: string): Promise<PublicUser>;
+  updateUser(userId: string, data: IUpdateUserDTO): Promise<PublicUser>;
+  changePassword(id: string, oldPassword: string, newPassword: string): Promise<PublicUser>;
 }
 
 export interface IUserRepository {
@@ -32,4 +29,5 @@ export interface IUserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
   update(id: string, data: Partial<NewUser>): Promise<User | null>;
+  clearSession(id: string, expectedSession: string): Promise<void>;
 }

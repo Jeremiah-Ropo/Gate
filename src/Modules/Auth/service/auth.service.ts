@@ -1,196 +1,84 @@
-import { Service } from "typedi";
+import { createHash } from "crypto";
 
-import RedisManager from "core/db/redis";
-import { URL } from "core/global/config";
 import { CustomError } from "core/global/errors";
-import NotificationPublisher from "core/global/shared/queue/publisher/notification.publisher";
 import { BcryptEncryption } from "core/global/utils/encryption/bcrypt.encryption";
-import { createJwtToken, createRefreshToken, isValidateJwtToken } from "core/global/utils/jwt-handler";
-import TokenHelper from "core/global/utils/token.utils";
-import {
-  IAuthService,
-  ILoginInputDTO,
-  ILoginOutputDTO,
-  ILogoutDTO,
-  IRegisterInputDTO,
-  IResetPasswordDTO,
-  IVerifyEmailDTO,
-} from "../entity/auth.interface";
-import authRepository from "../repository/auth.repository";
+import { createJwtToken, createRefreshToken, isValidateJwtToken, JwtPayload } from "core/global/utils/jwt-handler";
+import { IUserRepository } from "Modules/User/entity/user.interface";
+import { User } from "Modules/User/entity/user.model";
+import { toPublicUser } from "Modules/User/entity/user.view";
+import userRepository from "Modules/User/repository/user.repository";
+import { IAuthService, ILoginInputDTO, ILoginOutputDTO, ILogoutDTO, IRegisterInputDTO } from "../entity/auth.interface";
 
-@Service()
-class AuthService implements IAuthService {
-  private static instance: IAuthService;
-  private readonly repository = authRepository;
+const tokenHash = (token: string): string => createHash("sha256").update(token).digest("hex");
+const unauthorized = () => new CustomError(401, "Unauthorized", "Invalid or expired credentials");
 
-  public static getInstance(): IAuthService {
-    if (!this.instance) {
-      this.instance = new AuthService();
-    }
-    return this.instance;
-  }
+export class AuthService implements IAuthService {
+  constructor(
+    private readonly users: IUserRepository = userRepository,
+    private readonly hashPassword = BcryptEncryption.hash,
+  ) {}
 
-  private issueTokens(user: { id: string; email: string; role: string }) {
-    const token = createJwtToken({ id: user.id, email: user.email, role: user.role });
+  private async issueTokens(user: User): Promise<ILoginOutputDTO> {
     const refreshToken = createRefreshToken({ id: user.id });
-    return { token, refreshToken };
+    const sessionId = tokenHash(refreshToken);
+    await this.users.update(user.id, { refreshToken: sessionId });
+    const token = createJwtToken({ id: user.id, email: user.email, role: user.role, sessionId });
+    return { token, refreshToken, user: toPublicUser(user) };
   }
 
-  private strip(user: any) {
-    const { password: _password, refreshToken: _refreshToken, ...rest } = user;
-    return rest;
-  }
-
-  async register(payload: IRegisterInputDTO): Promise<{ sessionId: string; resendTokenSessionId: string }> {
-    const email = payload.email.toLowerCase();
-
-    const existing = await this.repository.users.findByEmail(email);
-    if (existing) {
-      throw new CustomError(400, "BadRequest", `${email} is already associated with an account`);
+  async register(payload: IRegisterInputDTO): Promise<ILoginOutputDTO> {
+    const email = payload.email.trim().toLowerCase();
+    const conflict = () => new CustomError(409, "Conflict", "An account with this email already exists");
+    if (await this.users.findByEmail(email)) throw conflict();
+    const passwordHash = await this.hashPassword(payload.password);
+    let user: User;
+    try {
+      user = await this.users.create({
+        firstName: payload.firstName.trim(),
+        lastName: payload.lastName.trim(),
+        email,
+        passwordHash,
+        role: "attendee",
+        isVerified: true,
+      });
+    } catch (error) {
+      if (
+        (error as { code?: string }).code === "23505" ||
+        (error as { cause?: { code?: string } }).cause?.code === "23505"
+      )
+        throw conflict();
+      throw error;
     }
-
-    const hashedPassword = await BcryptEncryption.hash(payload.password);
-
-    const { token, sessionId, resendTokenSessionId } = await TokenHelper.generateOTPToken({
-      type: "email_verification",
-      email,
-      metadata: {
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        phoneNumber: payload.phoneNumber,
-        password: hashedPassword,
-      },
-    });
-
-    const link = `${URL.CLIENT_URL}/auth/confirm?token=${token}&sessionId=${sessionId}`;
-    await new NotificationPublisher().publish({
-      type: "email-verification",
-      data: { email, name: payload.firstName, link },
-    });
-
-    return { sessionId, resendTokenSessionId };
-  }
-
-  async verifyEmail(payload: IVerifyEmailDTO): Promise<ILoginOutputDTO> {
-    const data = await TokenHelper.verifyOTPToken(payload.sessionId, payload.token);
-    if (!data || data.type !== "email_verification") {
-      throw new CustomError(400, "BadRequest", "Invalid or expired token");
-    }
-
-    const { email, metadata } = data;
-    if (!metadata) {
-      throw new CustomError(400, "BadRequest", "Invalid or expired token");
-    }
-
-    const user = await this.repository.users.create({
-      email,
-      firstName: metadata.firstName,
-      lastName: metadata.lastName,
-      phoneNumber: metadata.phoneNumber,
-      password: metadata.password,
-      isVerified: true,
-    });
-
-    const { token, refreshToken } = this.issueTokens({ id: user.id, email: user.email, role: user.role });
-    await this.repository.users.update(user.id, { refreshToken });
-    await RedisManager.delete(payload.sessionId);
-
-    return { token, refreshToken, user: this.strip(user) };
+    return this.issueTokens(user);
   }
 
   async login(payload: ILoginInputDTO): Promise<ILoginOutputDTO> {
-    const email = payload.email.toLowerCase();
-    const user = await this.repository.users.findByEmail(email);
-    if (!user) {
-      throw new CustomError(400, "BadRequest", "Invalid email or password");
+    const user = await this.users.findByEmail(payload.email.trim().toLowerCase());
+    if (!user || !user.isVerified || !(await BcryptEncryption.compare(payload.password, user.passwordHash))) {
+      throw unauthorized();
     }
-    if (!user.isVerified) {
-      throw new CustomError(400, "BadRequest", "Account not verified");
-    }
+    return this.issueTokens(user);
+  }
 
-    const isCorrectPassword = await BcryptEncryption.compare(payload.password, user.password);
-    if (!isCorrectPassword) {
-      throw new CustomError(400, "BadRequest", "Invalid email or password");
-    }
-
-    const { token, refreshToken } = this.issueTokens({ id: user.id, email: user.email, role: user.role });
-    await this.repository.users.update(user.id, { refreshToken });
-
-    return { token, refreshToken, user: this.strip(user) };
+  async authenticate(token: string): Promise<JwtPayload> {
+    const decoded = isValidateJwtToken(token);
+    const user = await this.users.findById(decoded.id);
+    if (!user?.isVerified || !user.refreshToken || user.refreshToken !== decoded.sessionId) throw unauthorized();
+    return { ...decoded, email: user.email, role: user.role };
   }
 
   async refreshToken(refreshToken: string): Promise<{ token: string }> {
-    const decoded = isValidateJwtToken(refreshToken, true);
-    const user = await this.repository.users.findById(decoded.id);
-    if (!user || user.refreshToken !== refreshToken) {
-      throw new CustomError(401, "Unauthorized", "Invalid refresh token");
-    }
-
-    const token = createJwtToken({ id: user.id, email: user.email, role: user.role });
-    return { token };
+    const decoded = isValidateJwtToken(refreshToken, "refresh");
+    const user = await this.users.findById(decoded.id);
+    const sessionId = tokenHash(refreshToken);
+    if (!user?.isVerified || user.refreshToken !== sessionId) throw unauthorized();
+    return { token: createJwtToken({ id: user.id, email: user.email, role: user.role, sessionId }) };
   }
 
   async logout(payload: ILogoutDTO): Promise<void> {
-    await RedisManager.set(`blacklist:${payload.token}`, { loggedOut: true }, 3600);
-  }
-
-  async forgotPassword(email: string): Promise<{ sessionId: string }> {
-    const emailLowerCase = email.toLowerCase();
-    const user = await this.repository.users.findByEmail(emailLowerCase);
-    if (!user) {
-      throw new CustomError(400, "BadRequest", `${emailLowerCase} is not associated with an account`);
-    }
-
-    const { sessionId, token } = await TokenHelper.generateOTPToken({ type: "password_reset", email: emailLowerCase });
-    const link = `${URL.CLIENT_URL}/auth/reset-password?token=${token}&sessionId=${sessionId}`;
-    await new NotificationPublisher().publish({
-      type: "email-verification",
-      data: { email: emailLowerCase, name: user.firstName, link },
-    });
-
-    return { sessionId };
-  }
-
-  async resetPassword(payload: IResetPasswordDTO): Promise<{ message: string }> {
-    const data = await TokenHelper.verifyOTPToken(payload.sessionId, payload.token);
-    if (!data || data.type !== "password_reset") {
-      throw new CustomError(400, "BadRequest", "Invalid or expired token");
-    }
-
-    const user = await this.repository.users.findByEmail(data.email);
-    if (!user) {
-      throw new CustomError(400, "BadRequest", "User not found");
-    }
-
-    const hashedPassword = await BcryptEncryption.hash(payload.newPassword);
-    await this.repository.users.update(user.id, { password: hashedPassword });
-    await RedisManager.delete(payload.sessionId);
-
-    return { message: "Password reset successfully" };
-  }
-
-  async resendVerificationEmail(
-    resendTokenSessionId: string,
-  ): Promise<{ sessionId: string; resendTokenSessionId: string }> {
-    const pending = await TokenHelper.getPendingByResendToken(resendTokenSessionId);
-    if (!pending || pending.type !== "email_verification") {
-      throw new CustomError(400, "BadRequest", "Invalid or expired token");
-    }
-
-    const {
-      token,
-      sessionId,
-      resendTokenSessionId: newResendTokenSessionId,
-    } = await TokenHelper.generateOTPToken(pending);
-    const link = `${URL.CLIENT_URL}/auth/confirm?token=${token}&sessionId=${sessionId}`;
-    await new NotificationPublisher().publish({
-      type: "email-verification",
-      data: { email: pending.email, name: pending.metadata?.firstName, link },
-    });
-    await RedisManager.delete(resendTokenSessionId);
-
-    return { sessionId, resendTokenSessionId: newResendTokenSessionId };
+    const actor = await this.authenticate(payload?.token);
+    await this.users.clearSession(actor.id, actor.sessionId);
   }
 }
 
-export default AuthService.getInstance();
+export default new AuthService();
