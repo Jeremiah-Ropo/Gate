@@ -17,6 +17,8 @@ Run frontend commands from this directory; the backend retains its own package a
 
 ## Run it
 
+Use Node.js 24 (see `.node-version`). The frontend dependencies do not support Node.js 18 or 23.
+
 ```bash
 cd frontend           # from the Gate repository root
 cp .env.example .env   # point VITE_API_URL at your Gate backend
