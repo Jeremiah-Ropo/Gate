@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { checkInStatusEnum } from "./enums.schema";
-import { checkInDevices } from "./check-in-device.schema";
 import { events } from "./event.schema";
 import { tickets } from "./ticket.schema";
 import { users } from "./user.schema";
@@ -22,10 +21,12 @@ export const checkIns = pgTable(
     // Text, not varchar(64): a signed payload is <uuid>.<uuid>.<base64 signature>, roughly
     // 160 characters, and the raw scanned string is kept verbatim for audit.
     scannedCode: text("scanned_code").notNull(),
-    // Superseded by scannedBy. Retained nullable until the device registry is removed so
-    // this migration changes no behaviour; see ADR 0007.
-    deviceId: uuid("device_id").references(() => checkInDevices.id),
-    scannedBy: uuid("scanned_by").references(() => users.id),
+    // Who scanned, not what scanned. A door is a logged-in staff member, so every scan is
+    // attributable to a person — which is what ADR 0007 needs to report a conflict as
+    // "admitted at door A by X, then at door B by Y".
+    scannedBy: uuid("scanned_by")
+      .notNull()
+      .references(() => users.id),
     status: checkInStatusEnum("status").notNull(),
     scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
     syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),

@@ -20,7 +20,7 @@ export interface ICheckInResult {
 }
 
 export interface ICheckInService {
-  sync(deviceId: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]>;
+  sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]>;
   listByTicket(ticketId: string): Promise<CheckIn[]>;
 }
 

@@ -1,6 +1,5 @@
 import { relations } from "drizzle-orm";
 
-import { checkInDevices } from "./check-in-device.schema";
 import { checkIns } from "./check-in.schema";
 import { eventInventory } from "./event-inventory.schema";
 import { eventMembers } from "./event-member.schema";
@@ -16,7 +15,6 @@ export * from "./event-inventory.schema";
 export * from "./event-member.schema";
 export * from "./ticket.schema";
 export * from "./ticket-reservation.schema";
-export * from "./check-in-device.schema";
 export * from "./check-in.schema";
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -32,7 +30,6 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   inventory: one(eventInventory, { fields: [events.id], references: [eventInventory.eventId] }),
   tickets: many(tickets),
   ticketReservations: many(ticketReservations),
-  checkInDevices: many(checkInDevices),
   members: many(eventMembers),
   checkIns: many(checkIns),
 }));
@@ -62,14 +59,8 @@ export const ticketsRelations = relations(tickets, ({ one, many }) => ({
   checkIns: many(checkIns),
 }));
 
-export const checkInDevicesRelations = relations(checkInDevices, ({ one, many }) => ({
-  event: one(events, { fields: [checkInDevices.eventId], references: [events.id] }),
-  checkIns: many(checkIns),
-}));
-
 export const checkInsRelations = relations(checkIns, ({ one }) => ({
   ticket: one(tickets, { fields: [checkIns.ticketId], references: [tickets.id] }),
   event: one(events, { fields: [checkIns.eventId], references: [events.id] }),
-  device: one(checkInDevices, { fields: [checkIns.deviceId], references: [checkInDevices.id] }),
   scannedByUser: one(users, { fields: [checkIns.scannedBy], references: [users.id] }),
 }));

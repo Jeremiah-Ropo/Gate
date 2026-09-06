@@ -19,7 +19,7 @@ class CheckInService implements ICheckInService {
     return this.instance;
   }
 
-  private async processScan(deviceId: string, eventId: string, scan: IOfflineScanDTO): Promise<ICheckInResult> {
+  private async processScan(scannedBy: string, eventId: string, scan: IOfflineScanDTO): Promise<ICheckInResult> {
     // Idempotent replay: a batch retried after a dropped connection should not be reprocessed.
     const existing = await this.repository.findByClientScanId(scan.clientScanId);
     if (existing) {
@@ -39,7 +39,7 @@ class CheckInService implements ICheckInService {
         ticketId: null,
         eventId,
         scannedCode: scan.ticketCode,
-        deviceId,
+        scannedBy,
         status: ECheckInStatus.INVALID,
         scannedAt,
         isOfflineSync: true,
@@ -58,7 +58,7 @@ class CheckInService implements ICheckInService {
         ticketId: ticket.id,
         eventId,
         scannedCode: scan.ticketCode,
-        deviceId,
+        scannedBy,
         status: ECheckInStatus.DENIED,
         scannedAt,
         isOfflineSync: true,
@@ -80,7 +80,7 @@ class CheckInService implements ICheckInService {
         ticketId: ticket.id,
         eventId,
         scannedCode: scan.ticketCode,
-        deviceId,
+        scannedBy,
         status: ECheckInStatus.DUPLICATE,
         scannedAt,
         isOfflineSync: true,
@@ -99,7 +99,7 @@ class CheckInService implements ICheckInService {
         ticketId: ticket.id,
         eventId,
         scannedCode: scan.ticketCode,
-        deviceId,
+        scannedBy,
         status: ECheckInStatus.DENIED,
         scannedAt,
         isOfflineSync: true,
@@ -118,7 +118,7 @@ class CheckInService implements ICheckInService {
       ticketId: ticket.id,
       eventId,
       scannedCode: scan.ticketCode,
-      deviceId,
+      scannedBy,
       status: ECheckInStatus.SUCCESS,
       scannedAt,
       isOfflineSync: true,
@@ -137,12 +137,12 @@ class CheckInService implements ICheckInService {
     };
   }
 
-  async sync(deviceId: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]> {
+  async sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]> {
     const results: ICheckInResult[] = [];
     // Sequential on purpose: scans on the same ticket code within one batch must be
     // resolved in submission order so the second one correctly lands as a duplicate.
     for (const scan of payload.scans) {
-      results.push(await this.processScan(deviceId, eventId, scan));
+      results.push(await this.processScan(scannedBy, eventId, scan));
     }
     return results;
   }

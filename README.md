@@ -14,8 +14,8 @@ BullMQ queues, idempotency locks, and the offline check-in dedupe window.
 - **User** — attendee/staff/admin accounts
 - **Event** — events an organizer publishes, with capacity and pricing
 - **Ticket** — issued tickets tied to a user + event, each with a scannable code
-- **CheckIn** — registered door-scanning devices and the check-in records they submit, including
-  batched offline sync with idempotent dedupe via `clientScanId`
+- **CheckIn** — door staff verifying tickets at an event, and the scan log they produce,
+  including batched offline sync with idempotent dedupe via `clientScanId`
 
 ## Getting started
 
@@ -32,11 +32,12 @@ yarn dev
 ## ⚠️ This is a template not from the main system architectural design.
 ## Offline check-in flow
 
-1. A door device registers against `POST /v1/check-in/devices` (admin-only) and is issued a device
-   key + secret.
-2. The device authenticates via `POST /v1/check-in/devices/auth` to receive a short-lived device
-   token, then pulls the event's valid ticket codes for local caching.
+1. An organizer adds a staff member to an event (`event_members`). A door device is not
+   registered hardware; it is a logged-in user with an active membership for that event.
+2. Staff sign in normally and open the event. Verification material is the event's public
+   key plus the exception lists, so the device needs no ticket list.
 3. While offline, the device records scans locally, each tagged with a client-generated
-   `clientScanId`.
-4. On reconnect, it submits the batch to `POST /v1/check-in/sync`. The server dedupes on
-   `clientScanId`, validates each ticket, and returns a per-scan result.
+   `clientScanId`, persisted before the screen reports admission.
+4. On reconnect it submits the batch to `POST /v1/check-in/events/:eventId/sync`. The server
+   dedupes on `clientScanId`, revalidates each ticket, and returns a per-scan result. Every
+   scan records who made it in `check_ins.scanned_by`.
