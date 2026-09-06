@@ -5,8 +5,17 @@ import TicketReservationService from "../service/ticket-reservation.service";
 class TicketReservationController {
   public static async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const reservation = await TicketReservationService.create(req.jwtPayload.id, req.params.eventId);
-      res.customSuccess(201, "Ticket reserved successfully", reservation);
+      const reservation = await TicketReservationService.create(req.jwtPayload.id, req.body.eventId);
+      res.customSuccess(201, "Reservation created successfully", reservation);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async getById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const reservation = await TicketReservationService.getById(req.jwtPayload.id, req.params.reservationId);
+      res.customSuccess(200, "Ticket reservation retrieved successfully", reservation);
     } catch (error) {
       next(error);
     }
@@ -15,7 +24,7 @@ class TicketReservationController {
   public static async cancel(req: Request, res: Response, next: NextFunction) {
     try {
       const reservation = await TicketReservationService.cancel(req.jwtPayload.id, req.params.reservationId);
-      res.customSuccess(200, "Ticket reservation cancelled successfully", reservation);
+      res.customSuccess(200, "Reservation cancelled successfully", reservation);
     } catch (error) {
       next(error);
     }

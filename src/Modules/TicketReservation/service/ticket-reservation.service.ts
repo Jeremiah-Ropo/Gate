@@ -54,6 +54,14 @@ class TicketReservationService implements ITicketReservationService {
     });
   }
 
+  async getById(userId: string, reservationId: string): Promise<TicketReservation> {
+    const reservation = await this.reservations.findByIdForUser(reservationId, userId);
+    if (!reservation) {
+      throw new CustomError(404, "NotFound", "Reservation not found");
+    }
+    return reservation;
+  }
+
   async cancel(userId: string, reservationId: string): Promise<TicketReservation> {
     return withTransaction(async (tx) => {
       const reservations = this.reservations.withTx(tx);

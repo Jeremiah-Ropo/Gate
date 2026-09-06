@@ -11,5 +11,6 @@ export interface ITicketReservationRepository {
 
 export interface ITicketReservationService {
   create(userId: string, eventId: string): Promise<TicketReservation>;
+  getById(userId: string, reservationId: string): Promise<TicketReservation>;
   cancel(userId: string, reservationId: string): Promise<TicketReservation>;
 }
