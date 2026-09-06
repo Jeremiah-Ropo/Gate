@@ -19,5 +19,5 @@ module.exports = {
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
   },
-  ignorePatterns: ["dist", "node_modules", "drizzle"],
+  ignorePatterns: ["dist", "node_modules", "drizzle", "frontend"],
 };
