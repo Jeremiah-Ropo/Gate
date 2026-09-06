@@ -2,6 +2,10 @@
 
 Gate deploys as two Node.js processes backed by managed PostgreSQL and Render Key Value:
 
+The React/Vite frontend deploys separately as the `gate-web` Static Site from
+`frontend/`, using Node 24 and publishing `dist`. PR #24 must land before applying
+this Blueprint. Browser routes are rewritten to `index.html`.
+
 ```text
 browser/client -> gate-api -> gate-db
                          \-> gate-queue -> gate-worker -> gate-db
@@ -19,6 +23,12 @@ browser/client -> gate-api -> gate-db
 1. Merge the stack through the CI quality-gate PR and confirm its required check is green.
 2. In Render, create a new Blueprint from this repository and review the paid resource estimates before applying it.
 3. Enter `CLOUD_NAME`, `API_KEY`, and `API_SECRET` when Render prompts. Do not put their values in Git.
+   Set `gate-web`'s `VITE_API_URL` to the API's actual public HTTPS URL plus `/v1`.
+   This is a build-time value; rebuild the frontend when it changes. Never use the
+   API's private hostname in browser configuration.
+   Add matching RSA PEM secret files named `private-key.pem` and `public-key.pem`
+   to `gate-api` in Render. Production reads them from `/etc/secrets`; retain the
+   same pair across releases. Missing files deliberately prevent startup.
 4. Confirm all four resources are in Frankfurt. Render connections then use internal URLs.
 5. Leave PR previews disabled; duplicating PostgreSQL, Key Value, API, and worker resources per PR is unnecessary for this capstone.
 
@@ -35,7 +45,15 @@ Render generates `DEVICE_JWT_SECRET` and injects the database and queue connecti
 
 ## Deployment and rollback
 
-Production deploys wait for GitHub checks because both services use `autoDeployTrigger: checksPass`. The API migration runs before traffic moves. If the API fails readiness, Render retains the previous healthy deployment.
+API and worker automatic deployment is disabled so releases can be ordered.
+Wait for GitHub CI to pass, stop the worker when a migration changes its schema,
+then deploy the API at the intended commit. Its pre-deploy step runs migrations.
+After API readiness succeeds, deploy/resume the worker at the same commit. A
+pre-deploy command on the API alone does not order an independently deploying worker.
+For a breaking migration, also stop API traffic during the migration using a
+maintenance window; do not assume a rolling deploy is safe. If readiness fails,
+inspect the migration outcome before restarting old code.
+The static frontend uses `checksPass` automatic deployments.
 
 For an application rollback, select the previous successful deploy for both `gate-api` and `gate-worker`. Do not reverse a database migration automatically. If a migration is not backward-safe, stop and use its reviewed recovery procedure.
 

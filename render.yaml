@@ -3,6 +3,23 @@ previews:
 
 services:
   - type: web
+    name: gate-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    staticPublishPath: dist
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
     name: gate-api
     runtime: node
     region: frankfurt
@@ -10,7 +27,7 @@ services:
     buildCommand: yarn install --frozen-lockfile && yarn build
     preDeployCommand: yarn db:migrate
     startCommand: yarn start:api
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: off
     healthCheckPath: /health/ready
     maxShutdownDelaySeconds: 30
     envVars:
@@ -47,7 +64,7 @@ services:
     plan: starter
     buildCommand: yarn install --frozen-lockfile && yarn build
     startCommand: yarn start:worker
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: off
     maxShutdownDelaySeconds: 60
     envVars:
       - key: DATABASE_URL
@@ -76,4 +93,5 @@ databases:
     postgresMajorVersion: "16"
     databaseName: gate
     user: gate
+    ipAllowList: []
     storageAutoscalingEnabled: true
