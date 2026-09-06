@@ -26,10 +26,7 @@ export const eventInventory = pgTable(
     check("events_inventory_sold_non_negative", sql`${table.sold} >= 0`),
     check("events_inventory_capacity_non_negative", sql`${table.capacity} >= 0`),
     // reserved + sold should never exceed capacity
-    check(
-      "events_inventory_not_oversold",
-      sql`${table.reserved} + ${table.sold} <= ${table.capacity}`,
-    ),
+    check("events_inventory_not_oversold", sql`${table.reserved} + ${table.sold} <= ${table.capacity}`),
   ],
 );
 
