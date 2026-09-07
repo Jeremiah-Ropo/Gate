@@ -1,5 +1,5 @@
 {
-  "id": "87a69c8c-d98c-4c30-a1df-6c597ad1c8ee",
+  "id": "13683bbe-2262-4c81-ac19-439cb2ee0b9e",
   "prevId": "2faa9d92-8115-464a-96ca-7754ac535590",
   "version": "7",
   "dialect": "postgresql",
@@ -186,44 +186,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "events_status_starts_at_idx": {
-          "name": "events_status_starts_at_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "starts_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "events_created_by_idx": {
-          "name": "events_created_by_idx",
-          "columns": [
-            {
-              "expression": "created_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "events_created_by_users_id_fk": {
           "name": "events_created_by_users_id_fk",
@@ -621,6 +584,99 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.reservation_payment_attempts": {
+      "name": "reservation_payment_attempts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "reservation_id": {
+          "name": "reservation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "payment_attempt_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'processing'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "reservation_payment_attempts_one_processing": {
+          "name": "reservation_payment_attempts_one_processing",
+          "columns": [
+            {
+              "expression": "reservation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"reservation_payment_attempts\".\"status\" = 'processing'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reservation_payment_attempts_reservation_id_ticket_reservations_id_fk": {
+          "name": "reservation_payment_attempts_reservation_id_ticket_reservations_id_fk",
+          "tableFrom": "reservation_payment_attempts",
+          "tableTo": "ticket_reservations",
+          "columnsFrom": [
+            "reservation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "reservation_payment_attempts_reference_unique": {
+          "name": "reservation_payment_attempts_reference_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reference"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.ticket_reservations": {
       "name": "ticket_reservations",
       "schema": "",
@@ -651,6 +707,24 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'pending'"
+        },
+        "latest_payment_id": {
+          "name": "latest_payment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_processing_expires_at": {
+          "name": "payment_processing_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "expires_at": {
           "name": "expires_at",
@@ -916,11 +990,21 @@
         "revoked"
       ]
     },
+    "public.payment_attempt_status": {
+      "name": "payment_attempt_status",
+      "schema": "public",
+      "values": [
+        "processing",
+        "succeeded",
+        "failed"
+      ]
+    },
     "public.reservation_status": {
       "name": "reservation_status",
       "schema": "public",
       "values": [
         "pending",
+        "payment_processing",
         "paid",
         "expired",
         "cancelled"

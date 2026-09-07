@@ -15,6 +15,24 @@ class EventController {
     }
   }
 
+  public static async list(req: Request, res: Response, next: NextFunction) {
+    try {
+      const events = await EventService.list();
+      res.customSuccess(200, "Events retrieved successfully", events);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async getById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const event = await EventService.getById(req.params.eventId);
+      res.customSuccess(200, "Event retrieved successfully", event);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async publish(req: Request, res: Response, next: NextFunction) {
     try {
       const payload: IPublishEventDTO = req.body;

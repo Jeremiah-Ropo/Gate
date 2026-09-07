@@ -32,9 +32,9 @@ import { eventProjectionService, IPublishedEventProjection } from "Modules/Event
 
 | Method | Path                 | Auth        | Notes                                               |
 | ------ | -------------------- | ----------- | --------------------------------------------------- |
-| POST   | `/v1/events/publish` | staff/admin | Creates event + inventory row in one transaction    |
-| POST   | `/v1/events`         | staff/admin | Creates a draft                                     |
-| PUT    | `/v1/events/:id`     | staff/admin | `capacity` is not accepted — it is fixed at publish |
+| POST   | `/v1/event/publish`  | staff/admin | Creates event + inventory row in one transaction    |
+| POST   | `/v1/event`          | staff/admin | Creates a draft                                     |
+| PUT    | `/v1/event/:id`      | staff/admin | `capacity` is not accepted — it is fixed at publish |
 | GET    | `/v1/console`        | none        | Read-only console page (shell only, holds no data)  |
 | GET    | `/v1/console/events` | staff/admin | The organiser's own events, drafts included         |
 

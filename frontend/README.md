@@ -12,7 +12,7 @@ Run frontend commands from this directory; the backend retains its own package a
 - `/` — published events, no auth
 - `/events/:eventId` — event detail, no auth. "Get ticket" routes to `/register` if the
   visitor isn't signed in, carrying `?next=` back to this page
-- `/register`, `/verify`, `/login` — the account wall, per brief item 2
+- `/register`, `/login` — registration signs in directly, matching Platform PR #9
 - Claiming a ticket (`POST /ticket`) only fires once the visitor holds a session
 
 ## Run it
@@ -42,11 +42,13 @@ The Gate backend must be running (see its own README) with `GET /event` and
 
 ## Integration work remaining
 
-The imported frontend still contains the email-verification flow. The agreed backend
-account flow registers and signs in directly, so the frontend owner must reconcile
-that flow with Platform PR #9. Public event visibility must also be enforced by the
-backend; browser filtering is not access control. Preview/mock behavior and session
-storage need review before declaring live API integration complete.
+Registration expects the session returned by Platform PR #9; deploy it only with that
+backend contract. The obsolete verification page and API calls have been removed.
+Public event visibility must be enforced by the backend; browser filtering is not
+access control. Ticket claiming still needs the reservation/payment endpoints in #25,
+and the staff page must replace device management with event membership and sync.
+Preview/mock behavior and session storage also need review before declaring full
+live API integration complete.
 
 The import preserves the application behavior. A successful static build alone does
 not establish that registration, ticket claims, or check-in work against the backend.

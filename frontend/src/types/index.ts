@@ -111,8 +111,3 @@ export interface AuthSession {
   refreshToken: string;
   user: GateUser;
 }
-
-export interface RegisterResult {
-  sessionId: string;
-  resendTokenSessionId: string;
-}

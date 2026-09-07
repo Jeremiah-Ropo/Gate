@@ -181,10 +181,6 @@ export class CheckInService implements ICheckInService {
       };
     }
 
-    // TODO: restore the check-in alert. Tickets no longer carry owner name/email, so the
-    // recipient has to be resolved through ticket.ownerId once the notification payload
-    // is reworked.
-
     return {
       clientScanId: scan.clientScanId,
       status: ECheckInStatus.SUCCESS,
