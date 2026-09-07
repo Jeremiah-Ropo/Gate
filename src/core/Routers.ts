@@ -8,6 +8,7 @@ import AuthRoutes from "Modules/Auth/routes/auth.routes";
 import CheckInRoutes from "Modules/CheckIn/routes/check-in.routes";
 import EventRoutes from "Modules/Event/routes/event.routes";
 import TicketRoutes from "Modules/Ticket/routes/ticket.routes";
+import TicketReservationRoutes from "Modules/TicketReservation/routes/ticket-reservation.routes";
 import UserRoutes from "Modules/User/routes/user.routes";
 
 export class SetupRouters {
@@ -24,6 +25,7 @@ export class SetupRouters {
       app.use(`${this.apiPrefix}/user`, AuthGuardMiddleware.authenticate, UserRoutes);
       app.use(`${this.apiPrefix}/event`, AuthGuardMiddleware.authenticate, EventRoutes);
       app.use(`${this.apiPrefix}/ticket`, AuthGuardMiddleware.authenticate, TicketRoutes);
+      app.use(this.apiPrefix, AuthGuardMiddleware.authenticate, TicketReservationRoutes);
 
       // CheckIn mounts its own mixed auth (user auth for device admin, device auth for scanning)
       app.use(`${this.apiPrefix}/check-in`, CheckInRoutes);

@@ -30,6 +30,7 @@ export const mailer = {
 export const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
 export const JWT_REFRESH_EXPIRATION = process.env.JWT_REFRESH_EXPIRATION || "7d";
 export const DEVICE_JWT_SECRET = process.env.DEVICE_JWT_SECRET;
+export const RESERVATION_TTL_SECONDS = Number(process.env.RESERVATION_TTL_SECONDS) || 10 * 60;
 
 export const CLOUDINARY = {
   CLOUD_NAME: process.env.CLOUD_NAME,
