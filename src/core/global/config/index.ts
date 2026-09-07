@@ -29,6 +29,14 @@ export const RESERVATION_TTL_SECONDS = Number(process.env.RESERVATION_TTL_SECOND
 export const PAYMENT_PROCESSING_TTL_SECONDS = Number(process.env.PAYMENT_PROCESSING_TTL_SECONDS) || 60;
 export const PAYMENT_PROVIDER_TIMEOUT_MS = Number(process.env.PAYMENT_PROVIDER_TIMEOUT_MS) || 5_000;
 
+// Ed25519 key pair used to sign ticket QR payloads. Base64-encoded PEM; generate with
+// `yarn setup:ticket-keys`. The private key signs at issuance and must never be shipped to
+// a door device — only PUBLIC_CHECKIN_KEY goes out in the check-in session manifest.
+export const TICKET_SIGNING = {
+  PRIVATE_KEY: process.env.PRIVATE_CHECKIN_KEY,
+  PUBLIC_KEY: process.env.PUBLIC_CHECKIN_KEY,
+};
+
 export const CLOUDINARY = {
   CLOUD_NAME: process.env.CLOUD_NAME,
   API_KEY: process.env.API_KEY,
