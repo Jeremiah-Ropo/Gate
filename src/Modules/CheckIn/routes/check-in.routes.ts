@@ -4,27 +4,31 @@ import { ERole } from "core/global/entities/enums";
 import AuthGuardMiddleware from "core/global/middlewares/auth-guard.middleware";
 import IdempotencyMiddleware from "core/global/middlewares/idempotency.middleware";
 import { throttleMiddleware } from "core/global/middlewares/throttle.middleware";
-import CheckInDeviceController from "../controller/check-in-device.controller";
+import RequireEventMemberMiddleware from "Modules/EventMember/middleware/require-event-member.middleware";
 import CheckInController from "../controller/check-in.controller";
-import DeviceAuthMiddleware from "../middleware/device-auth.middleware";
-import { validateDeviceAuth, validateRegisterDevice, validateSyncCheckIn } from "../validations/check-in.validations";
+import { validateSyncCheckIn } from "../validations/check-in.validations";
 
 const router: Router = Router();
 const idempotency = new IdempotencyMiddleware();
 const organizerOnly = [AuthGuardMiddleware.authenticate, AuthGuardMiddleware.authorize([ERole.STAFF, ERole.ADMIN])];
 
-// Organizer/admin: manage the physical scanning devices for an event
-router.post("/devices", [...organizerOnly, validateRegisterDevice], CheckInDeviceController.register);
-router.get("/devices/event/:eventId", organizerOnly, CheckInDeviceController.listForEvent);
-router.put("/devices/:deviceId/deactivate", organizerOnly, CheckInDeviceController.deactivate);
-
-// Device: exchange long-lived credentials for a short-lived device token
-router.post("/devices/auth", [validateDeviceAuth], CheckInDeviceController.authenticate);
-
-// Device: submit a batch of scans recorded while offline
+// Door staff: submit a batch of scans. The event comes from the path now that there is no
+// device token to carry it, and the scanner is the authenticated user rather than a
+// registered device.
+//
+// Two guards, answering different questions. organizerOnly asks whether you are staff at
+// all, which keeps an attendee off a door even if someone adds them to an event by mistake.
+// requireEventMember asks whether you are on *this* event's door, which is the check the
+// device registry used to stand in for. Neither is sufficient alone.
 router.post(
-  "/sync",
-  [DeviceAuthMiddleware.authenticate, throttleMiddleware(30, 1), idempotency.middleware(), validateSyncCheckIn],
+  "/events/:eventId/sync",
+  [
+    ...organizerOnly,
+    RequireEventMemberMiddleware.authorize,
+    throttleMiddleware(30, 1),
+    idempotency.middleware(),
+    validateSyncCheckIn,
+  ],
   CheckInController.sync,
 );
 

@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    "Geist Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:
+    "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+  --font-serif: "Fraunces Variable", ui-serif, Georgia, serif;
+}
+
+body {
+  color-scheme: light;
+  font-family: var(--font-sans);
+}
+
+/* Headings use the display serif everywhere by default (font-serif is still
+   available as a utility for one-off use, e.g. the Navbar wordmark). */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-serif);
+}

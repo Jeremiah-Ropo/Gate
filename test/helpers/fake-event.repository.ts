@@ -29,10 +29,13 @@ export const makeEvent = (overrides: Partial<Event> = {}): Event => ({
  */
 export class FakeEventRepository implements IEventRepository {
   public reads = 0;
-  /** Capacities passed to createPublishedWithInventory, so tests can assert the inventory write. */
-  public inventoryWrites: Array<{ eventId: string; capacity: number }> = [];
 
   constructor(private rows: Event[] = []) {}
+
+  /** The fake is its own transaction: everything already happens in one in-memory array. */
+  withTx(): IEventRepository {
+    return this;
+  }
 
   private byStartsAtAsc(rows: Event[]): Event[] {
     return [...rows].sort((a, b) => a.starts_at.getTime() - b.starts_at.getTime());
@@ -69,14 +72,8 @@ export class FakeEventRepository implements IEventRepository {
   }
 
   async create(data: NewEvent): Promise<Event> {
-    const row = makeEvent(data as Partial<Event>);
+    const row = makeEvent({ ...(data as Partial<Event>), id: data.id ?? `generated-${this.rows.length}` });
     this.rows.push(row);
-    return row;
-  }
-
-  async createPublishedWithInventory(data: NewEvent, capacity: number): Promise<Event> {
-    const row = await this.create(data);
-    this.inventoryWrites.push({ eventId: row.id, capacity });
     return row;
   }
 

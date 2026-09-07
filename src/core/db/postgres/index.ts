@@ -1,4 +1,6 @@
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { NodePgTransaction } from "drizzle-orm/node-postgres";
+import type { ExtractTablesWithRelations } from "drizzle-orm";
 import { Pool } from "pg";
 
 import { DATABASE } from "../../global/config";
@@ -7,6 +9,9 @@ import * as schema from "./schema";
 
 let pool: Pool;
 let db: NodePgDatabase<typeof schema>;
+
+export type DbTransaction = NodePgTransaction<typeof schema, ExtractTablesWithRelations<typeof schema>>;
+export type DbExecutor = NodePgDatabase<typeof schema> | DbTransaction;
 
 export const connectDB = (): void => {
   if (!DATABASE.URL) {
@@ -33,6 +38,10 @@ export const getDb = (): NodePgDatabase<typeof schema> => {
     throw new Error("Database not initialized. Call connectDB() before getDb().");
   }
   return db;
+};
+
+export const withTransaction = async <T>(work: (tx: DbTransaction) => Promise<T>): Promise<T> => {
+  return getDb().transaction(work);
 };
 
 export * from "./schema";

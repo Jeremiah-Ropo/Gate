@@ -1,4 +1,5 @@
 import { EEventStatus } from "core/global/entities/enums";
+import type { DbTransaction } from "core/db/postgres";
 import { Event, NewEvent } from "./event.model";
 
 export interface ICreateEventDTO {
@@ -82,13 +83,8 @@ export interface IEventService {
 }
 
 export interface IEventRepository {
+  withTx(tx: DbTransaction): IEventRepository;
   create(data: NewEvent): Promise<Event>;
-  /**
-   * Inserts the event and its inventory row in one transaction. Inventory's schema requires the row
-   * to exist from the moment the event does, and it exposes no method for us to call — so this is
-   * the single place Events writes that table, and the seam to replace if Inventory takes it over.
-   */
-  createPublishedWithInventory(data: NewEvent, capacity: number): Promise<Event>;
   findById(id: string): Promise<Event | null>;
   findBySlug(slug: string): Promise<Event | null>;
   list(): Promise<Event[]>;

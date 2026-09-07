@@ -1,3 +1,4 @@
+import type { DbTransaction } from "core/db/postgres";
 import { NewTicket, Ticket } from "./ticket.model";
 
 export interface IIssueTicketDTO {
@@ -15,6 +16,7 @@ export interface ITicketService {
 }
 
 export interface ITicketRepository {
+  withTx(tx: DbTransaction): ITicketRepository;
   create(data: NewTicket): Promise<Ticket>;
   findById(id: string): Promise<Ticket | null>;
   findByCode(code: string): Promise<Ticket | null>;

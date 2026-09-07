@@ -7,6 +7,7 @@ import "core/global/entities/constants";
 import AuthRoutes from "Modules/Auth/routes/auth.routes";
 import CheckInRoutes from "Modules/CheckIn/routes/check-in.routes";
 import EventConsoleRoutes from "Modules/Event/routes/event-console.routes";
+import EventMemberRoutes from "Modules/EventMember/routes/event-member.routes";
 import EventRoutes from "Modules/Event/routes/event.routes";
 import TicketRoutes from "Modules/Ticket/routes/ticket.routes";
 import UserRoutes from "Modules/User/routes/user.routes";
@@ -31,8 +32,9 @@ export class SetupRouters {
       app.use(`${this.apiPrefix}/user`, AuthGuardMiddleware.authenticate, UserRoutes);
       app.use(`${this.apiPrefix}/events`, AuthGuardMiddleware.authenticate, EventRoutes);
       app.use(`${this.apiPrefix}/ticket`, AuthGuardMiddleware.authenticate, TicketRoutes);
+      app.use(`${this.apiPrefix}/event-members`, AuthGuardMiddleware.authenticate, EventMemberRoutes);
 
-      // CheckIn mounts its own mixed auth (user auth for device admin, device auth for scanning)
+      // CheckIn authenticates per route: door staff are ordinary logged-in users.
       app.use(`${this.apiPrefix}/check-in`, CheckInRoutes);
 
       logger.info("API routes setup completed");
