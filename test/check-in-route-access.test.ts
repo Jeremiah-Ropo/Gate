@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import { expect } from "chai";
 import express from "express";
 import request from "supertest";
+import { MemoryStore } from "express-rate-limit";
+import { throttleMiddleware } from "../src/core/global/middlewares/throttle.middleware";
 
 import "../src/core/global/entities/types";
 import { ERole } from "../src/core/global/entities/enums";
@@ -9,6 +11,7 @@ import { errorHandler } from "../src/core/global/middlewares/error-handler.middl
 import { createJwtToken } from "../src/core/global/utils/jwt-handler";
 import eventMemberService from "../src/Modules/EventMember/service/event-member.service";
 import checkInRoutes from "../src/Modules/CheckIn/routes/check-in.routes";
+import userRepository from "../src/Modules/User/repository/user.repository";
 
 const EVENT_ID = randomUUID();
 const DOOR_STAFF = randomUUID();
@@ -29,20 +32,27 @@ const validBatch = () => ({
 const app = (() => {
   const instance = express();
   instance.use(express.json());
-  instance.use("/check-in", checkInRoutes);
+  instance.use(
+    "/check-in",
+    checkInRoutes((policy) => throttleMiddleware(policy, new MemoryStore())),
+  );
   instance.use(errorHandler);
   return instance;
 })();
 
-const tokenFor = (actor: { id: string; role: string }) =>
-  createJwtToken({ id: actor.id, email: "door@example.com", role: actor.role } as any);
+const tokenFor = (actor: { id: string; role: string }) => {
+  userRepository.findById = async () => ({ ...actor, isVerified: true, refreshToken: "review-session" } as any);
+  return createJwtToken({ id: actor.id, email: "door@example.com", role: actor.role, sessionId: "review-session" });
+};
 
 describe("POST /check-in/events/:eventId/sync access", () => {
   const originalIsActive = eventMemberService.isActiveMember;
+  const originalFindUser = userRepository.findById;
   const REFUSED_AT_THE_GATE = [401, 403];
 
   after(() => {
     eventMemberService.isActiveMember = originalIsActive;
+    userRepository.findById = originalFindUser;
   });
 
   it("lets an active member of the event past the guards", async () => {
