@@ -1,6 +1,5 @@
 import { NextFunction, Request, Response } from "express";
 
-import { CustomError } from "core/global/errors";
 import UserService from "../service/user.service";
 
 class UserController {
@@ -27,22 +26,6 @@ class UserController {
       const { currentPassword, newPassword } = req.body;
       const user = await UserService.changePassword(req.jwtPayload.id, currentPassword, newPassword);
       res.customSuccess(200, "Password changed successfully", user);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  public static async uploadProfilePicture(req: Request, res: Response, next: NextFunction) {
-    try {
-      if (!req.files || Object.keys(req.files).length === 0) {
-        throw new CustomError(400, "BadRequest", "No file uploaded");
-      }
-      const file = (req.files as any).profilePicture;
-      if (!file) {
-        throw new CustomError(400, "BadRequest", "profilePicture field is missing in request body");
-      }
-      const user = await UserService.updateProfilePicture(req.jwtPayload.id, file.tempFilePath);
-      res.customSuccess(200, "Profile picture uploaded successfully", user);
     } catch (error) {
       next(error);
     }
