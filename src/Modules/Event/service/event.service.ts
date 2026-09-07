@@ -1,3 +1,4 @@
+import { withTransaction, type DbTransaction } from "core/db/postgres";
 import { EEventStatus } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
 import { generateUniqueSuffix, slugify } from "core/global/utils/helper";
@@ -5,7 +6,9 @@ import cloudinary from "core/providers/cloud-storage/cloudinary";
 import logger from "core/global/utils/logger";
 import EventCachePublisher from "../queue/event-cache.publisher";
 import { EventMutationReason } from "../queue/event-cache.entity";
+import eventInventoryRepository from "../repository/event-inventory.repository";
 import eventRepository from "../repository/event.repository";
+import { IEventInventoryRepository } from "../entity/event-inventory.interface";
 import {
   ICreateEventDTO,
   IEventRepository,
@@ -13,14 +16,21 @@ import {
   IPublishEventDTO,
   IUpdateEventDTO,
 } from "../entity/event.interface";
-import { Event } from "../entity/event.model";
+import { Event, NewEvent } from "../entity/event.model";
+
+/** Injected so the write paths can be tested without a live Postgres transaction. */
+export type TransactionRunner = <T>(work: (tx: DbTransaction) => Promise<T>) => Promise<T>;
 
 /**
- * Write side of the Events slice. The repository is a constructor argument so the publish path —
- * which is the one place this slice writes Inventory's table — can be tested without Postgres.
+ * Write side of the Events slice. Collaborators arrive through the constructor so the publish and
+ * update paths — the two that carry real authorisation weight — can be tested without Postgres.
  */
 export class EventService implements IEventService {
-  constructor(private readonly repository: IEventRepository) {}
+  constructor(
+    private readonly repository: IEventRepository,
+    private readonly inventory: IEventInventoryRepository,
+    private readonly runTransaction: TransactionRunner = withTransaction,
+  ) {}
 
   /**
    * Queues cache invalidation for a mutation that has already committed. Deliberately not awaited
@@ -59,15 +69,18 @@ export class EventService implements IEventService {
   /**
    * Creates an event already published, with a fixed ticket count.
    *
-   * The count is the capacity of the event's inventory row, created in the same transaction — the
-   * only write this slice makes to Inventory's table. Events never touches a counter afterwards,
-   * and offers no way to change capacity: that would be an Inventory operation.
+   * The event row and its inventory row are written in one transaction: Inventory's schema requires
+   * the inventory row to exist from the moment the event does, so an event that committed without
+   * one could never be claimed and would need manual repair. This is the only path in the system
+   * that may set an event to `published`.
    */
   async publishEvent(createdBy: string, payload: IPublishEventDTO): Promise<Event> {
-    const event = await this.repository.createPublishedWithInventory(
-      {
+    const slug = await this.buildUniqueSlug(payload.name);
+
+    const event = await this.runTransaction(async (tx) => {
+      const event = await this.repository.withTx(tx).create({
         name: payload.name,
-        slug: await this.buildUniqueSlug(payload.name),
+        slug,
         description: payload.description,
         venue: payload.venue,
         address: payload.address,
@@ -76,11 +89,14 @@ export class EventService implements IEventService {
         currency: payload.currency || "NGN",
         status: EEventStatus.PUBLISHED,
         createdBy,
-      },
-      payload.capacity,
-    );
+      });
 
-    // A new published event changes what the cached published list should contain.
+      await this.inventory.withTx(tx).create({ eventId: event.id, capacity: payload.capacity });
+      return event;
+    });
+
+    // Published only once the transaction has committed: a rolled-back publish must not evict a
+    // still-valid cache entry. A new published event changes what the cached list should contain.
     this.announceCommittedMutation(event.id, "published");
     return event;
   }
@@ -105,21 +121,48 @@ export class EventService implements IEventService {
     return event;
   }
 
+  /**
+   * Builds the update from an explicit allowlist rather than spreading the request body.
+   *
+   * Spreading let a caller set any column on the row: review reproduced reassigning `createdBy` to
+   * take over someone else's event. Anything not named here is ignored, so a new column is opt-in
+   * to editing rather than editable by default.
+   */
+  private buildPatch(payload: IUpdateEventDTO): Partial<NewEvent> {
+    const patch: Partial<NewEvent> = {};
+
+    if (payload.name !== undefined) patch.name = payload.name;
+    if (payload.description !== undefined) patch.description = payload.description;
+    if (payload.venue !== undefined) patch.venue = payload.venue;
+    if (payload.address !== undefined) patch.address = payload.address;
+    if (payload.coverImage !== undefined) patch.coverImage = payload.coverImage;
+    if (payload.ticketPrice !== undefined) patch.ticketPrice = payload.ticketPrice;
+    if (payload.startsAt !== undefined) patch.starts_at = new Date(payload.startsAt);
+    if (payload.status !== undefined) patch.status = payload.status;
+
+    return patch;
+  }
+
   async updateEvent(id: string, requesterId: string, payload: IUpdateEventDTO): Promise<Event> {
     await this.assertOwnership(id, requesterId);
 
-    // startsAt is the DTO's name for the starts_at column; everything else maps straight through.
-    const { startsAt, ...rest } = payload;
-    const updated = await this.repository.update(id, {
-      ...rest,
-      ...(startsAt ? { starts_at: new Date(startsAt) } : {}),
-    });
+    // Publication creates the inventory row in the same transaction. Reaching `published` through
+    // an ordinary edit would skip that entirely and leave an event nobody can claim a ticket for.
+    if (payload.status === EEventStatus.PUBLISHED) {
+      throw new CustomError(
+        409,
+        "Conflict",
+        "An event is published through POST /v1/events/publish, so its inventory is created with it",
+      );
+    }
+
+    const updated = await this.repository.update(id, this.buildPatch(payload));
     if (!updated) {
       throw new CustomError(400, "BadRequest", "Event not updated");
     }
 
-    // Covers status transitions in both directions: an event entering or leaving `published`
-    // changes the cached list as much as a rename changes the cached entry.
+    // Covers status transitions in both directions: an event leaving `published` changes the
+    // cached list as much as a rename changes the cached entry.
     this.announceCommittedMutation(updated.id, "updated");
     return updated;
   }
@@ -136,4 +179,4 @@ export class EventService implements IEventService {
   }
 }
 
-export default new EventService(eventRepository);
+export default new EventService(eventRepository, eventInventoryRepository);

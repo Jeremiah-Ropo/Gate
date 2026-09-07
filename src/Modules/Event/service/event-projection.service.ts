@@ -1,8 +1,8 @@
 import { CustomError } from "core/global/errors";
-import eventInventoryReader from "../repository/event-inventory.reader";
+import eventInventoryRepository from "../repository/event-inventory.repository";
 import eventRepository from "../repository/event.repository";
 import eventCache from "./event-cache";
-import { IEventInventoryReader } from "../entity/event-inventory.interface";
+import { IEventInventoryRepository } from "../entity/event-inventory.interface";
 import {
   IConsoleEventRow,
   IEventCache,
@@ -15,19 +15,19 @@ import { toConsoleRow, toDescriptor, toProjection } from "../entity/event.view";
 /**
  * The read model for events — the surface other slices consume.
  *
- * Event fields are served cache-aside; capacity and the counters are read from Inventory live on
- * every request and merged in. Only the event fields are cached, because the counters move on
- * claims, which happen in another slice and give this one no invalidation signal. See
+ * Event fields are served cache-aside; capacity and the counters come from Inventory's repository
+ * and are read live on every request. Only the event fields are cached, because the counters move
+ * on claims, which happen in another slice and give this one no invalidation signal. See
  * event-cache.ts for the full reasoning.
  *
  * Collaborators arrive through the constructor rather than being imported at module scope, so the
- * read paths can be exercised against fakes with no Postgres or Inventory present. The wired
+ * read paths can be exercised against fakes with no Postgres, Redis or Inventory present. The wired
  * singleton is the default export, matching how every other service here is consumed.
  */
 export class EventProjectionService implements IEventProjectionService {
   constructor(
     private readonly repository: IEventRepository,
-    private readonly inventory: IEventInventoryReader,
+    private readonly inventory: IEventInventoryRepository,
     private readonly cache: IEventCache,
   ) {}
 
@@ -45,6 +45,8 @@ export class EventProjectionService implements IEventProjectionService {
   async getPublishedById(id: string): Promise<IPublishedEventProjection> {
     let descriptor = await this.cache.getDescriptor(id);
     if (!descriptor) {
+      // Status is part of the query, so an unpublished event is indistinguishable from a missing
+      // one and a draft can never be cached as though it were public.
       const event = await this.repository.findPublishedById(id);
       if (!event) {
         throw new CustomError(404, "NotFound", "Event not found");
@@ -67,4 +69,4 @@ export class EventProjectionService implements IEventProjectionService {
   }
 }
 
-export default new EventProjectionService(eventRepository, eventInventoryReader, eventCache);
+export default new EventProjectionService(eventRepository, eventInventoryRepository, eventCache);

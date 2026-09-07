@@ -1,4 +1,5 @@
 import { ECheckInStatus } from "core/global/entities/enums";
+import type { DbTransaction } from "core/db/postgres";
 import { CheckIn, NewCheckIn } from "./check-in.model";
 
 export interface IOfflineScanDTO {
@@ -19,12 +20,14 @@ export interface ICheckInResult {
 }
 
 export interface ICheckInService {
-  sync(deviceId: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]>;
+  sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]>;
   listByTicket(ticketId: string): Promise<CheckIn[]>;
 }
 
 export interface ICheckInRepository {
+  withTx(tx: DbTransaction): ICheckInRepository;
   findByClientScanId(clientScanId: string): Promise<CheckIn | null>;
+  findSuccessByTicket(ticketId: string): Promise<CheckIn | null>;
   create(data: NewCheckIn): Promise<CheckIn>;
   listByTicket(ticketId: string): Promise<CheckIn[]>;
 }

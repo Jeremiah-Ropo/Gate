@@ -29,6 +29,10 @@ export const mailer = {
 
 export const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
 export const JWT_REFRESH_EXPIRATION = process.env.JWT_REFRESH_EXPIRATION || "7d";
+// No longer used for device authentication — that scheme is gone. It is retained only
+// because App.ts passes it to cookie-parser as the cookie signing secret; removing it
+// would silently drop signed cookies back to a hardcoded default. Platform should rename
+// this to COOKIE_SECRET.
 export const DEVICE_JWT_SECRET = process.env.DEVICE_JWT_SECRET;
 
 export const CLOUDINARY = {

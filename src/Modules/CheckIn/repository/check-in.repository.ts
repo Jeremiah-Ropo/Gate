@@ -1,11 +1,14 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import { getDb } from "core/db/postgres";
+import { ECheckInStatus } from "core/global/entities/enums";
+import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { ICheckInRepository } from "../entity/check-in.interface";
 import { CheckIn, CheckInTable, NewCheckIn } from "../entity/check-in.model";
 
 class CheckInRepository implements ICheckInRepository {
   private static instance: ICheckInRepository;
+
+  constructor(private readonly executor?: DbExecutor) {}
 
   public static getInstance(): ICheckInRepository {
     if (!this.instance) {
@@ -14,8 +17,16 @@ class CheckInRepository implements ICheckInRepository {
     return this.instance;
   }
 
+  withTx(tx: DbTransaction): ICheckInRepository {
+    return new CheckInRepository(tx);
+  }
+
+  private get db(): DbExecutor {
+    return this.executor ?? getDb();
+  }
+
   async findByClientScanId(clientScanId: string): Promise<CheckIn | null> {
-    const [checkIn] = await getDb()
+    const [checkIn] = await this.db
       .select()
       .from(CheckInTable)
       .where(eq(CheckInTable.clientScanId, clientScanId))
@@ -23,13 +34,24 @@ class CheckInRepository implements ICheckInRepository {
     return checkIn ?? null;
   }
 
+  // Whether a ticket has already been admitted is read from the scan log, not from the
+  // ticket row. A ticket can be refunded after being scanned and both facts stay true.
+  async findSuccessByTicket(ticketId: string): Promise<CheckIn | null> {
+    const [checkIn] = await this.db
+      .select()
+      .from(CheckInTable)
+      .where(and(eq(CheckInTable.ticketId, ticketId), eq(CheckInTable.status, ECheckInStatus.SUCCESS)))
+      .limit(1);
+    return checkIn ?? null;
+  }
+
   async create(data: NewCheckIn): Promise<CheckIn> {
-    const [checkIn] = await getDb().insert(CheckInTable).values(data).returning();
+    const [checkIn] = await this.db.insert(CheckInTable).values(data).returning();
     return checkIn;
   }
 
   async listByTicket(ticketId: string): Promise<CheckIn[]> {
-    return getDb().select().from(CheckInTable).where(eq(CheckInTable.ticketId, ticketId));
+    return this.db.select().from(CheckInTable).where(eq(CheckInTable.ticketId, ticketId));
   }
 }
 

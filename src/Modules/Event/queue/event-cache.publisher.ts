@@ -28,7 +28,11 @@ export default class EventCachePublisher {
 
     await queueManager.getQueue(EVENT_CACHE_QUEUE).add(EVENT_CACHE_INVALIDATE, job, {
       // Stable id: a duplicate publish for the same commit is dropped rather than queued twice.
-      jobId: `${EVENT_CACHE_INVALIDATE}:${eventId}:${job.committedAt}`,
+      //
+      // Hyphens and an epoch stamp, not colons and an ISO timestamp: BullMQ delimits its own Redis
+      // keys with ':' and rejects a custom id containing one, so the previous format meant no
+      // invalidation was ever queued at all. Covered by a test below the fold in event-cache.test.
+      jobId: `${EVENT_CACHE_INVALIDATE}-${eventId}-${Date.parse(job.committedAt)}`,
       attempts: 5,
       backoff: { type: "exponential", delay: 1000 },
       removeOnComplete: true,

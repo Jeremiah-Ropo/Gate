@@ -7,7 +7,7 @@ class CheckInController {
   public static async sync(req: Request, res: Response, next: NextFunction) {
     try {
       const payload: ISyncCheckInDTO = req.body;
-      const results = await CheckInService.sync(req.devicePayload.deviceId, req.devicePayload.eventId, payload);
+      const results = await CheckInService.sync(req.jwtPayload.id, req.params.eventId, payload);
       res.customSuccess(200, "Batch synced", results);
     } catch (error) {
       next(error);

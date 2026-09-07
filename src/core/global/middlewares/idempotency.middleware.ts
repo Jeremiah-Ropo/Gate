@@ -17,7 +17,7 @@ export default class IdempotencyMiddleware {
   }
 
   private generateUniqueCacheKey(req: Request, headerKey: string): string {
-    const userId = req.jwtPayload?.id || req.devicePayload?.deviceId || "anonymous";
+    const userId = req.jwtPayload?.id || "anonymous";
     const bodyHash = crypto
       .createHash("sha256")
       .update(JSON.stringify(req.body || {}))

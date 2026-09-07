@@ -9,7 +9,19 @@ class EventConsoleController {
    * token and calls the guarded JSON endpoint below, which is where the authorisation lives.
    */
   public static page(req: Request, res: Response, next: NextFunction) {
-    res.sendFile(path.join(__dirname, "../public/console.html"), (error) => {
+    EventConsoleController.sendAsset("console.html", res, next);
+  }
+
+  /**
+   * The page's behaviour is served as a file rather than inlined: Helmet's default policy is
+   * `script-src 'self'`, so an inline <script> never executes.
+   */
+  public static script(req: Request, res: Response, next: NextFunction) {
+    EventConsoleController.sendAsset("console.js", res, next);
+  }
+
+  private static sendAsset(fileName: string, res: Response, next: NextFunction) {
+    res.sendFile(path.join(__dirname, "../public", fileName), (error) => {
       if (error) {
         next(error);
       }

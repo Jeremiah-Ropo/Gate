@@ -9,6 +9,7 @@ const organizerOnly = [AuthGuardMiddleware.authenticate, AuthGuardMiddleware.aut
 
 // The shell page holds no data and is not gated; the guard sits on the JSON endpoint it calls.
 router.get("/", EventConsoleController.page);
+router.get("/console.js", EventConsoleController.script);
 router.get("/events", organizerOnly, EventConsoleController.listMine);
 
 export default router;

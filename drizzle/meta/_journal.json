@@ -19,8 +19,22 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1788524642085,
-      "tag": "0002_event_read_indexes",
+      "when": 1788573856714,
+      "tag": "0002_nice_nomad",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788723498413,
+      "tag": "0003_tidy_dagger",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788773885852,
+      "tag": "0004_event_read_indexes",
       "breakpoints": true
     }
   ]

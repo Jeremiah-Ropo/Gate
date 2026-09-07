@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { CustomError } from "core/global/errors";
 import { EventProjectionService } from "Modules/Event/service/event-projection.service";
 import { FakeEventCache } from "./helpers/fake-event-cache";
-import { FakeEventInventoryReader, makeSnapshot } from "./helpers/fake-event-inventory.reader";
+import { FakeEventInventoryRepository, makeInventory } from "./helpers/fake-event-inventory.repository";
 import { FakeEventRepository, makeEvent } from "./helpers/fake-event.repository";
 
 const PUBLISHED_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -14,11 +14,11 @@ const OTHER_ORGANISER_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
 const build = (
   rows = [makeEvent({ id: PUBLISHED_ID })],
-  snapshots = [makeSnapshot(PUBLISHED_ID)],
+  snapshots = [makeInventory(PUBLISHED_ID)],
   cache = new FakeEventCache(),
 ) => {
   const repository = new FakeEventRepository(rows);
-  const inventory = new FakeEventInventoryReader(snapshots);
+  const inventory = new FakeEventInventoryRepository(snapshots);
   return { repository, inventory, cache, service: new EventProjectionService(repository, inventory, cache) };
 };
 
@@ -37,7 +37,7 @@ describe("EventProjectionService", () => {
           makeEvent({ id: DRAFT_ID, name: "Unannounced", slug: "unannounced", status: "draft" }),
           makeEvent({ id: "ffffffff-ffff-4fff-8fff-ffffffffffff", slug: "called-off", status: "cancelled" }),
         ],
-        [makeSnapshot(PUBLISHED_ID, { capacity: 100, reserved: 5, sold: 25 })],
+        [makeInventory(PUBLISHED_ID, { capacity: 100, reserved: 5, sold: 25 })],
       );
 
       const events = await service.listPublished();
@@ -82,7 +82,7 @@ describe("EventProjectionService", () => {
     it("returns the event with its live figures", async () => {
       const { service } = build(
         [makeEvent({ id: PUBLISHED_ID })],
-        [makeSnapshot(PUBLISHED_ID, { capacity: 250, reserved: 1, sold: 245 })],
+        [makeInventory(PUBLISHED_ID, { capacity: 250, reserved: 1, sold: 245 })],
       );
 
       const event = await service.getPublishedById(PUBLISHED_ID);
@@ -137,7 +137,7 @@ describe("EventProjectionService", () => {
           makeEvent({ id: DRAFT_ID, slug: "draft-one", createdBy: ORGANISER_ID, status: "draft" }),
           makeEvent({ id: OTHER_ID, slug: "someone-else", createdBy: OTHER_ORGANISER_ID }),
         ],
-        [makeSnapshot(PUBLISHED_ID, { capacity: 100, sold: 30 })],
+        [makeInventory(PUBLISHED_ID, { capacity: 100, sold: 30 })],
       );
 
       const events = await service.listForOrganiser(ORGANISER_ID);
