@@ -5,7 +5,11 @@ import { RESERVATION_TTL_SECONDS } from "core/global/config";
 import { CustomError } from "core/global/errors";
 import eventRepository from "Modules/Event/repository/event.repository";
 import eventInventoryRepository from "Modules/Event/repository/event-inventory.repository";
-import { ITicketReservationService } from "../entity/ticket-reservation.interface";
+import {
+  ICreateReservationDTO,
+  IReservationResponseDTO,
+  ITicketReservationService,
+} from "../entity/ticket-reservation.interface";
 import { TicketReservation } from "../entity/ticket-reservation.model";
 import ticketReservationRepository from "../repository/ticket-reservation.repository";
 
@@ -23,9 +27,10 @@ class TicketReservationService implements ITicketReservationService {
     return this.instance;
   }
 
-  async create(userId: string, eventId: string): Promise<TicketReservation> {
+  async create(userId: string, payload: ICreateReservationDTO): Promise<IReservationResponseDTO> {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + RESERVATION_TTL_SECONDS * 1000);
+    const eventId = payload.eventId;
 
     return withTransaction(async (tx) => {
       const events = this.events.withTx(tx);
@@ -46,23 +51,25 @@ class TicketReservationService implements ITicketReservationService {
         throw new CustomError(409, "Conflict", "No tickets are available for this event");
       }
 
-      return reservations.create({
+      const reservation = await reservations.create({
         userId,
         eventId,
         expiresAt,
       });
+
+      return this.toResponse(reservation);
     });
   }
 
-  async getById(userId: string, reservationId: string): Promise<TicketReservation> {
+  async getById(userId: string, reservationId: string): Promise<IReservationResponseDTO> {
     const reservation = await this.reservations.findByIdForUser(reservationId, userId);
     if (!reservation) {
       throw new CustomError(404, "NotFound", "Reservation not found");
     }
-    return reservation;
+    return this.toResponse(reservation);
   }
 
-  async cancel(userId: string, reservationId: string): Promise<TicketReservation> {
+  async cancel(userId: string, reservationId: string): Promise<IReservationResponseDTO> {
     return withTransaction(async (tx) => {
       const reservations = this.reservations.withTx(tx);
       const inventories = this.inventories.withTx(tx);
@@ -87,8 +94,19 @@ class TicketReservationService implements ITicketReservationService {
         throw new CustomError(409, "Conflict", "Reservation inventory is already released");
       }
 
-      return cancelled;
+      return this.toResponse(cancelled);
     });
+  }
+
+  private toResponse(reservation: TicketReservation): IReservationResponseDTO {
+    return {
+      id: reservation.id,
+      eventId: reservation.eventId,
+      status: reservation.status,
+      expiresAt: reservation.expiresAt.toISOString(),
+      createdAt: reservation.createdAt.toISOString(),
+      updatedAt: reservation.updatedAt.toISOString(),
+    };
   }
 }
 

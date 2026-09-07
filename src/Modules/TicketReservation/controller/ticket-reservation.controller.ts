@@ -1,11 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 
+import { ICreateReservationDTO } from "../entity/ticket-reservation.interface";
 import TicketReservationService from "../service/ticket-reservation.service";
 
 class TicketReservationController {
   public static async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const reservation = await TicketReservationService.create(req.jwtPayload.id, req.body.eventId);
+      const payload: ICreateReservationDTO = req.body;
+      const reservation = await TicketReservationService.create(req.jwtPayload.id, payload);
       res.customSuccess(201, "Reservation created successfully", reservation);
     } catch (error) {
       next(error);

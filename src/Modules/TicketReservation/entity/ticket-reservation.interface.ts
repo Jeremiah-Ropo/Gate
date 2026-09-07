@@ -1,6 +1,21 @@
 import type { DbTransaction } from "core/db/postgres";
 import { NewTicketReservation, TicketReservation } from "./ticket-reservation.model";
 
+export type ReservationStatus = "pending" | "paid" | "expired" | "cancelled";
+
+export interface ICreateReservationDTO {
+  eventId: string;
+}
+
+export interface IReservationResponseDTO {
+  id: string;
+  eventId: string;
+  status: ReservationStatus;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ITicketReservationRepository {
   withTx(tx: DbTransaction): ITicketReservationRepository;
   create(data: NewTicketReservation): Promise<TicketReservation>;
@@ -10,7 +25,7 @@ export interface ITicketReservationRepository {
 }
 
 export interface ITicketReservationService {
-  create(userId: string, eventId: string): Promise<TicketReservation>;
-  getById(userId: string, reservationId: string): Promise<TicketReservation>;
-  cancel(userId: string, reservationId: string): Promise<TicketReservation>;
+  create(userId: string, payload: ICreateReservationDTO): Promise<IReservationResponseDTO>;
+  getById(userId: string, reservationId: string): Promise<IReservationResponseDTO>;
+  cancel(userId: string, reservationId: string): Promise<IReservationResponseDTO>;
 }
