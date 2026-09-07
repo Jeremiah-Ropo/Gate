@@ -83,6 +83,10 @@ class TicketReservationService implements ITicketReservationService {
       throw new CustomError(404, "NotFound", "Reservation not found");
     }
 
+    if (current.reservation.status === "payment_processing" && current.latestPayment) {
+      return this.reconcilePayment(userId, reservationId, current.latestPayment.id, current.latestPayment.reference);
+    }
+
     return this.toResponse(current.reservation, current.latestPayment, current.ticket?.id ?? null);
   }
 
@@ -122,8 +126,9 @@ class TicketReservationService implements ITicketReservationService {
 
     switch (current.reservation.status) {
       case "paid":
-      case "payment_processing": {
         return this.toResponse(current.reservation, current.latestPayment, current.ticket?.id ?? null);
+      case "payment_processing": {
+        return this.getById(userId, reservationId);
       }
       case "pending":
         break;
@@ -225,7 +230,11 @@ class TicketReservationService implements ITicketReservationService {
       throw new CustomError(402, "BadRequest", "The payment was declined");
     }
 
-    return this.getById(userId, reservationId);
+    const current = await this.reservations.findByIdForUser(reservationId, userId);
+    if (!current) {
+      throw new CustomError(404, "NotFound", "Reservation not found");
+    }
+    return this.toResponse(current.reservation, current.latestPayment, current.ticket?.id ?? null);
   }
 
   private async claimPaidReservation(
