@@ -6,11 +6,24 @@ import { NODE_ENV } from "@/core/global/config";
 
 const isProduction = NODE_ENV === "production";
 const level = process.env.LOG_LEVEL || "info";
+const redact = [
+  "password",
+  "passwordHash",
+  "token",
+  "refreshToken",
+  "*.password",
+  "*.passwordHash",
+  "*.token",
+  "*.refreshToken",
+  "req.headers.authorization",
+  "req.headers.cookie",
+  'res.headers["set-cookie"]',
+];
 
 const logger = isProduction
-  ? pino({ level })
+  ? pino({ level, redact })
   : pino(
-      { level },
+      { level, redact },
       pretty({
         colorize: true,
         translateTime: "UTC:yyyy-mm-dd'T'HH:mm:ss",
