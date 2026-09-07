@@ -25,7 +25,7 @@ export class SetupRouters {
       app.use(`${this.apiPrefix}/event`, AuthGuardMiddleware.authenticate, EventRoutes);
       app.use(`${this.apiPrefix}/ticket`, AuthGuardMiddleware.authenticate, TicketRoutes);
 
-      // CheckIn mounts its own mixed auth (user auth for device admin, device auth for scanning)
+      // CheckIn authenticates per route: door staff are ordinary logged-in users.
       app.use(`${this.apiPrefix}/check-in`, CheckInRoutes);
 
       logger.info("API routes setup completed");

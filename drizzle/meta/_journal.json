@@ -15,6 +15,20 @@
       "when": 1787958244215,
       "tag": "0001_milky_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788573856714,
+      "tag": "0002_nice_nomad",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788723498413,
+      "tag": "0003_tidy_dagger",
+      "breakpoints": true
     }
   ]
 }

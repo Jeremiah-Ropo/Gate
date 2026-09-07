@@ -3,35 +3,12 @@ import validator from "validator";
 
 import { CustomError } from "core/global/errors";
 
-export const validateRegisterDevice = async (req: Request, res: Response, next: NextFunction) => {
-  const { eventId, name } = req.body as { eventId: string; name: string };
-
-  if (typeof eventId !== "string" || !validator.isUUID(eventId)) {
-    return next(new CustomError(422, "Validation", "eventId must be a valid uuid"));
-  }
-  if (typeof name !== "string" || validator.isEmpty(name.trim())) {
-    return next(new CustomError(422, "Validation", "name is required"));
-  }
-
-  return next();
-};
-
-export const validateDeviceAuth = async (req: Request, res: Response, next: NextFunction) => {
-  const { deviceKey, deviceSecret } = req.body as { deviceKey: string; deviceSecret: string };
-
-  if (typeof deviceKey !== "string" || validator.isEmpty(deviceKey)) {
-    return next(new CustomError(422, "Validation", "deviceKey is required"));
-  }
-  if (typeof deviceSecret !== "string" || validator.isEmpty(deviceSecret)) {
-    return next(new CustomError(422, "Validation", "deviceSecret is required"));
-  }
-
-  return next();
-};
-
 export const validateSyncCheckIn = async (req: Request, res: Response, next: NextFunction) => {
   const { scans } = req.body as { scans: any[] };
 
+  if (typeof req.params.eventId !== "string" || !validator.isUUID(req.params.eventId)) {
+    return next(new CustomError(422, "Validation", "eventId must be a valid uuid"));
+  }
   if (!Array.isArray(scans) || scans.length === 0) {
     return next(new CustomError(422, "Validation", "scans must be a non-empty array"));
   }
