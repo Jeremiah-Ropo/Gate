@@ -18,15 +18,6 @@ export const URL = {
   CLIENT_URL: process.env.CLIENT_URL || `http://localhost:3000`,
 };
 
-export const mailer = {
-  SERVICE: process.env.SERVICE || "gmail",
-  HOST: process.env.HOST,
-  PORT: process.env.PORTMAIL || 465,
-  SECURE: process.env.SECURE === "true",
-  GATE_NOREPLY: process.env.GATE_NOREPLY,
-  GATE_NOREPLY_PASSWORD: process.env.GATE_NOREPLY_PASSWORD,
-};
-
 export const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
 export const JWT_REFRESH_EXPIRATION = process.env.JWT_REFRESH_EXPIRATION || "7d";
 export const DEVICE_JWT_SECRET = process.env.DEVICE_JWT_SECRET;
