@@ -3,10 +3,12 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ErrorState } from "@/components/StatusMessage";
+import { useAuth } from "@/context/AuthContext";
 import { errorMessage, register } from "@/lib/api";
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const { setSession } = useAuth();
   const [searchParams] = useSearchParams();
   const next = searchParams.get("next") ?? "/";
 
@@ -17,13 +19,9 @@ export function RegisterPage() {
 
   const mutation = useMutation({
     mutationFn: register,
-    onSuccess: (result) => {
-      const verifyParams = new URLSearchParams({
-        sessionId: result.sessionId,
-        resendTokenSessionId: result.resendTokenSessionId,
-        next,
-      });
-      navigate(`/verify?${verifyParams.toString()}`);
+    onSuccess: (session) => {
+      setSession(session);
+      navigate(next, { replace: true });
     },
   });
 

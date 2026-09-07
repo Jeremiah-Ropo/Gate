@@ -152,7 +152,7 @@ export class EventService implements IEventService {
       throw new CustomError(
         409,
         "Conflict",
-        "An event is published through POST /v1/events/publish, so its inventory is created with it",
+        "An event is published through POST /v1/event/publish, so its inventory is created with it",
       );
     }
 

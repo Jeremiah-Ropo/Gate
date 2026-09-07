@@ -18,15 +18,6 @@ export const URL = {
   CLIENT_URL: process.env.CLIENT_URL || `http://localhost:3000`,
 };
 
-export const mailer = {
-  SERVICE: process.env.SERVICE || "gmail",
-  HOST: process.env.HOST,
-  PORT: process.env.PORTMAIL || 465,
-  SECURE: process.env.SECURE === "true",
-  GATE_NOREPLY: process.env.GATE_NOREPLY,
-  GATE_NOREPLY_PASSWORD: process.env.GATE_NOREPLY_PASSWORD,
-};
-
 export const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "15m";
 export const JWT_REFRESH_EXPIRATION = process.env.JWT_REFRESH_EXPIRATION || "7d";
 // No longer used for device authentication — that scheme is gone. It is retained only
@@ -34,6 +25,17 @@ export const JWT_REFRESH_EXPIRATION = process.env.JWT_REFRESH_EXPIRATION || "7d"
 // would silently drop signed cookies back to a hardcoded default. Platform should rename
 // this to COOKIE_SECRET.
 export const DEVICE_JWT_SECRET = process.env.DEVICE_JWT_SECRET;
+export const RESERVATION_TTL_SECONDS = Number(process.env.RESERVATION_TTL_SECONDS) || 10 * 60;
+export const PAYMENT_PROCESSING_TTL_SECONDS = Number(process.env.PAYMENT_PROCESSING_TTL_SECONDS) || 60;
+export const PAYMENT_PROVIDER_TIMEOUT_MS = Number(process.env.PAYMENT_PROVIDER_TIMEOUT_MS) || 5_000;
+
+// Ed25519 key pair used to sign ticket QR payloads. Base64-encoded PEM; generate with
+// `yarn setup:ticket-keys`. The private key signs at issuance and must never be shipped to
+// a door device — only PUBLIC_CHECKIN_KEY goes out in the check-in session manifest.
+export const TICKET_SIGNING = {
+  PRIVATE_KEY: process.env.PRIVATE_CHECKIN_KEY,
+  PUBLIC_KEY: process.env.PUBLIC_CHECKIN_KEY,
+};
 
 export const CLOUDINARY = {
   CLOUD_NAME: process.env.CLOUD_NAME,

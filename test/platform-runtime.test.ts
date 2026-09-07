@@ -21,6 +21,7 @@ describe("Platform API runtime", () => {
       readinessCheck: async () => {
         readinessChecks += 1;
       },
+      setupRouters: () => undefined,
     });
 
     const response = await request(app).get("/health/live");
@@ -31,7 +32,7 @@ describe("Platform API runtime", () => {
   });
 
   it("reports readiness when required dependencies respond", async () => {
-    const app = createApp({ readinessCheck: async () => undefined });
+    const app = createApp({ readinessCheck: async () => undefined, setupRouters: () => undefined });
 
     const response = await request(app).get("/health/ready");
 
@@ -44,6 +45,7 @@ describe("Platform API runtime", () => {
       readinessCheck: async () => {
         throw new Error("postgres://secret-host unavailable");
       },
+      setupRouters: () => undefined,
     });
 
     const response = await request(app).get("/health/ready");

@@ -76,13 +76,13 @@ Reasoning is recorded in [ADR 0004](adr/0004-events-read-model-caching.md).
 
 ## Write path
 
-| Method | Path                  | Auth                             |
-| ------ | --------------------- | -------------------------------- |
-| POST   | `/v1/events/publish`  | staff/admin                      |
-| POST   | `/v1/events`          | staff/admin (creates a draft)    |
-| PUT    | `/v1/events/:eventId` | staff/admin                      |
-| GET    | `/v1/console`         | none (shell only, holds no data) |
-| GET    | `/v1/console/events`  | staff/admin                      |
+| Method | Path                 | Auth                             |
+| ------ | -------------------- | -------------------------------- |
+| POST   | `/v1/event/publish`  | staff/admin                      |
+| POST   | `/v1/event`          | staff/admin (creates a draft)    |
+| PUT    | `/v1/event/:eventId` | staff/admin                      |
+| GET    | `/v1/console`        | none (shell only, holds no data) |
+| GET    | `/v1/console/events` | staff/admin                      |
 
 Two rules protect that transaction:
 
@@ -123,7 +123,9 @@ fallback rather than assuming it.
   with `withTx`, so publish calls into their code rather than inserting into their table.
 - `findByEventIds` was added to Inventory's repository by this slice; Inventory should confirm they
   are happy owning it.
-- Public browse needs a URL prefix that does not collide with `/v1/events` — for API contract review.
+- Public browse needs its own URL prefix for anonymous reads. This slice deliberately stays on
+  `/v1/event`, matching main and the frontend's `lib/api.ts`, so nothing here has to be
+  renamed for browse to land.
 - `coverImage` is not in the projection; ask if browse needs it.
 - `main` currently does not compile: four other slices still reference columns removed in #3. See
   [the bug report](bug-reports/0001-schema-change-breaks-five-slices.md).

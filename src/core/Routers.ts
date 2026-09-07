@@ -1,45 +1,36 @@
 import { Application } from "express";
-
-import AuthGuardMiddleware from "./global/middlewares/auth-guard.middleware";
-import { throttleMiddleware } from "./global/middlewares/throttle.middleware";
-import logger from "./global/utils/logger";
 import "core/global/entities/constants";
-import AuthRoutes from "Modules/Auth/routes/auth.routes";
-import CheckInRoutes from "Modules/CheckIn/routes/check-in.routes";
-import EventConsoleRoutes from "Modules/Event/routes/event-console.routes";
+import createAuthRoutes from "Modules/Auth/routes/auth.routes";
+import createCheckInRoutes from "Modules/CheckIn/routes/check-in.routes";
 import EventMemberRoutes from "Modules/EventMember/routes/event-member.routes";
-import EventRoutes from "Modules/Event/routes/event.routes";
-import TicketRoutes from "Modules/Ticket/routes/ticket.routes";
+import createEventConsoleRoutes from "Modules/Event/routes/event-console.routes";
+import createEventRoutes from "Modules/Event/routes/event.routes";
+import createTicketRoutes from "Modules/Ticket/routes/ticket.routes";
+import TicketReservationRoutes from "Modules/TicketReservation/routes/ticket-reservation.routes";
 import UserRoutes from "Modules/User/routes/user.routes";
+import AuthGuardMiddleware from "./global/middlewares/auth-guard.middleware";
+import { rateLimitPolicies, throttleMiddleware } from "./global/middlewares/throttle.middleware";
+import logger from "./global/utils/logger";
 
 export class SetupRouters {
   private static apiVersion = "v1";
   private static apiPrefix = `/${this.apiVersion}`;
+  public static init(app: Application): void {
+    logger.info("Setting up API routes");
+    app.use(`${this.apiPrefix}/auth`, throttleMiddleware(rateLimitPolicies.authIp), createAuthRoutes());
+    const authenticated = [AuthGuardMiddleware.authenticate, throttleMiddleware(rateLimitPolicies.standardUser)];
 
-  public static init(app: Application) {
-    try {
-      logger.info("Setting up API routes");
+    // Organiser console. The page and its script are open and carry no data; the JSON endpoint
+    // behind them is guarded. Anonymous published-event reads are not served here — the Public
+    // browse slice owns those and consumes the projection exported from Modules/Event.
+    app.use(`${this.apiPrefix}/console`, createEventConsoleRoutes());
 
-      app.use(`${this.apiPrefix}/auth`, throttleMiddleware(20, 15), AuthRoutes);
-
-      // Anonymous published-event endpoints belong to the Public browse slice, which consumes
-      // the projection exported from Modules/Event. Nothing unauthenticated is mounted here.
-
-      // Organiser console — the page is open, the data endpoint behind it is guarded.
-      app.use(`${this.apiPrefix}/console`, EventConsoleRoutes);
-
-      // Protected — user-facing
-      app.use(`${this.apiPrefix}/user`, AuthGuardMiddleware.authenticate, UserRoutes);
-      app.use(`${this.apiPrefix}/events`, AuthGuardMiddleware.authenticate, EventRoutes);
-      app.use(`${this.apiPrefix}/ticket`, AuthGuardMiddleware.authenticate, TicketRoutes);
-      app.use(`${this.apiPrefix}/event-members`, AuthGuardMiddleware.authenticate, EventMemberRoutes);
-
-      // CheckIn authenticates per route: door staff are ordinary logged-in users.
-      app.use(`${this.apiPrefix}/check-in`, CheckInRoutes);
-
-      logger.info("API routes setup completed");
-    } catch (error) {
-      console.error("Error setting up routers: ", error);
-    }
+    app.use(`${this.apiPrefix}/user`, authenticated, UserRoutes);
+    app.use(`${this.apiPrefix}/event`, authenticated, createEventRoutes());
+    app.use(`${this.apiPrefix}/ticket`, authenticated, createTicketRoutes());
+    app.use(`${this.apiPrefix}/event-members`, authenticated, EventMemberRoutes);
+    app.use(`${this.apiPrefix}/check-in`, createCheckInRoutes());
+    app.use(this.apiPrefix, authenticated, TicketReservationRoutes);
+    logger.info("API routes setup completed");
   }
 }

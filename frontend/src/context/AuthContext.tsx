@@ -45,11 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setSession = (next: AuthSession, isPreview = false) => {
     const stored: StoredSession = { ...next, isPreview };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    // Install the token before navigating to a page that immediately fetches data.
+    setAuthToken(isPreview ? null : next.token);
     setSessionState(stored);
   };
 
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY);
+    setAuthToken(null);
     setSessionState(null);
   };
 

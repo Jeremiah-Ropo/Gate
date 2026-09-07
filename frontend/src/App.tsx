@@ -11,7 +11,6 @@ import { MyTicketsPage } from "@/pages/MyTicketsPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { CheckInPage } from "@/pages/staff/CheckInPage";
-import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
 
 export function App() {
   return (
@@ -23,7 +22,6 @@ export function App() {
         <Route path="/events/:eventId" element={<EventDetailPage />} />
 
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/verify" element={<VerifyEmailPage />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* Attendee: claim tickets, view what they've claimed. */}
