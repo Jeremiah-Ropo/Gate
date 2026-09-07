@@ -8,7 +8,7 @@ services:
     rootDir: frontend
     buildCommand: yarn install --frozen-lockfile && yarn build
     staticPublishPath: dist
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: off
     envVars:
       - key: NODE_VERSION
         value: "24"
@@ -31,6 +31,8 @@ services:
     healthCheckPath: /health/ready
     maxShutdownDelaySeconds: 30
     envVars:
+      - key: NODE_VERSION
+        value: "24"
       - key: DATABASE_URL
         fromDatabase:
           name: gate-db
@@ -46,8 +48,12 @@ services:
         value: 7d
       - key: SALT
         value: "12"
-      - key: DEVICE_JWT_SECRET
+      - key: COOKIE_SECRET
         generateValue: true
+      - key: PRIVATE_CHECKIN_KEY
+        sync: false
+      - key: PUBLIC_CHECKIN_KEY
+        sync: false
       - key: LOG_LEVEL
         value: info
       - key: CLOUD_NAME
@@ -67,6 +73,18 @@ services:
     autoDeployTrigger: off
     maxShutdownDelaySeconds: 60
     envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: PRIVATE_CHECKIN_KEY
+        fromService:
+          name: gate-api
+          type: web
+          envVarKey: PRIVATE_CHECKIN_KEY
+      - key: PUBLIC_CHECKIN_KEY
+        fromService:
+          name: gate-api
+          type: web
+          envVarKey: PUBLIC_CHECKIN_KEY
       - key: DATABASE_URL
         fromDatabase:
           name: gate-db

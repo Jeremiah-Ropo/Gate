@@ -7,7 +7,7 @@ declare namespace NodeJS {
     REDIS_CONNECTION_STRING: string;
     JWT_EXPIRATION: string;
     JWT_REFRESH_EXPIRATION: string;
-    DEVICE_JWT_SECRET: string;
+    COOKIE_SECRET: string;
     SALT: string;
     BACKEND_URL: string;
     CLIENT_URL: string;

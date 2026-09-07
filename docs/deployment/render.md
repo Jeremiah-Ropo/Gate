@@ -3,8 +3,8 @@
 Gate deploys as two Node.js processes backed by managed PostgreSQL and Render Key Value:
 
 The React/Vite frontend deploys separately as the `gate-web` Static Site from
-`frontend/`, using Node 24 and publishing `dist`. PR #24 must land before applying
-this Blueprint. Browser routes are rewritten to `index.html`.
+`frontend/`, using Node 24 and publishing `dist`. The frontend and direct registration
+are now on main. Browser routes are rewritten to `index.html`.
 
 ```text
 browser/client -> gate-api -> gate-db
@@ -29,10 +29,28 @@ browser/client -> gate-api -> gate-db
    Add matching RSA PEM secret files named `private-key.pem` and `public-key.pem`
    to `gate-api` in Render. Production reads them from `/etc/secrets`; retain the
    same pair across releases. Missing files deliberately prevent startup.
+   Separately, supply `PRIVATE_CHECKIN_KEY` and `PUBLIC_CHECKIN_KEY` as base64-encoded
+   Ed25519 PEM keys for the signing helper in #28. Generate this pair once using
+   that PR's `yarn setup:ticket-keys`, keep it outside Git, and retain it across
+   deployments. The worker references the API's values so recovery jobs can issue
+   the same signed tickets. These are not the RSA login-token keys above.
 4. Confirm all four resources are in Frankfurt. Render connections then use internal URLs.
 5. Leave PR previews disabled; duplicating PostgreSQL, Key Value, API, and worker resources per PR is unnecessary for this capstone.
 
-Render generates `DEVICE_JWT_SECRET` and injects the database and queue connection strings. The API alone runs `yarn db:migrate` before a release, preventing the API and worker from racing the same migration.
+Render generates `COOKIE_SECRET` and injects the database and queue connection strings.
+The obsolete device secret has been renamed; on an existing deployment set the new
+variable explicitly before deploying. The API alone runs `yarn db:migrate` before
+a release, preventing the API and worker from racing the same migration.
+
+## Current release blockers
+
+- CI #11 still reports existing Event/Ticket service-to-schema mismatches; do not bypass it.
+- Land and integrate Events #15 and caching #16, including public frontend API routes.
+- Signing #28 must land and be used by purchase and offline scanning.
+- Reservation #25 is merged as a foundation. Expiry and payment-recovery workers
+  remain follow-ups; a healthy worker process alone does not prove those jobs exist.
+- Exercise the real browser journey: register, reserve, pay, show signed QR, check in,
+  synchronize, and verify expiry/recovery. Mock/preview mode is not deployment evidence.
 
 ## Acceptance checks
 
@@ -53,7 +71,8 @@ pre-deploy command on the API alone does not order an independently deploying wo
 For a breaking migration, also stop API traffic during the migration using a
 maintenance window; do not assume a rolling deploy is safe. If readiness fails,
 inspect the migration outcome before restarting old code.
-The static frontend uses `checksPass` automatic deployments.
+Deploy the static frontend manually after the API and worker are ready at the
+same release. All three use manual deployments during integration.
 
 For an application rollback, select the previous successful deploy for both `gate-api` and `gate-worker`. Do not reverse a database migration automatically. If a migration is not backward-safe, stop and use its reviewed recovery procedure.
 

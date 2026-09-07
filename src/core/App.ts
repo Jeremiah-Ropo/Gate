@@ -51,7 +51,7 @@ const setupMiddleware = (app: Application): void => {
   app.use(corsMiddleware);
   app.use(helmet());
   app.use(express.json({ limit: "10mb" }));
-  app.use(cookieParser(process.env.DEVICE_JWT_SECRET));
+  app.use(cookieParser(process.env.COOKIE_SECRET));
   app.use(express.urlencoded({ extended: true }));
   app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
   app.use(
