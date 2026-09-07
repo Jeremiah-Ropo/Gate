@@ -17,3 +17,11 @@ export const reservationStatusEnum = pgEnum("reservation_status", [
 export const paymentAttemptStatusEnum = pgEnum("payment_attempt_status", ["processing", "succeeded", "failed"]);
 
 export const checkInStatusEnum = pgEnum("check_in_status", ["success", "duplicate", "invalid", "denied"]);
+
+// Event-level roles, distinct from the global users.role. Someone who scans at the door is
+// not necessarily staff across the whole system, and vice versa.
+export const eventMemberRoleEnum = pgEnum("event_member_role", ["door_staff", "organizer"]);
+
+// Revoked rather than deleted: the scan log needs a member to point at, and an event
+// should keep a record of everyone who was ever able to work its door.
+export const membershipStatusEnum = pgEnum("membership_status", ["active", "revoked"]);
