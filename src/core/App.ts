@@ -18,15 +18,15 @@ import notFound from "core/global/middlewares/not-found.middleware";
 import { corsMiddleware } from "core/global/utils/cors-options";
 import logger from "core/global/utils/logger";
 import "core/providers/cloud-storage/cloudinary";
-import "core/providers/email-provider/nodemailer";
-import "core/providers/email-template/template-provider";
 import queueManager from "./global/shared/queue/queue-manager";
 import { SetupRouters } from "./Routers";
 
 type ReadinessCheck = () => Promise<void>;
+type RouterSetup = (app: Application) => void;
 
 interface CreateAppOptions {
   readinessCheck?: ReadinessCheck;
+  setupRouters?: RouterSetup;
 }
 
 const checkReadiness: ReadinessCheck = async () => {
@@ -92,11 +92,16 @@ const setupHealthChecks = (app: Application, readinessCheck: ReadinessCheck): vo
   });
 };
 
-export const createApp = ({ readinessCheck = checkReadiness }: CreateAppOptions = {}): Application => {
+const setupRouters: RouterSetup = (app) => SetupRouters.init(app);
+
+export const createApp = ({
+  readinessCheck = checkReadiness,
+  setupRouters: configureRouters = setupRouters,
+}: CreateAppOptions = {}): Application => {
   const app = express();
   setupMiddleware(app);
   setupHealthChecks(app, readinessCheck);
-  SetupRouters.init(app);
+  configureRouters(app);
   app.use(errorHandler);
   app.use(notFound);
   return app;
