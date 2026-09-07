@@ -4,7 +4,7 @@ import { checkInDevices } from "./check-in-device.schema";
 import { checkIns } from "./check-in.schema";
 import { eventInventory } from "./event-inventory.schema";
 import { events } from "./event.schema";
-import { ticketReservations } from "./ticket-reservation.schema";
+import { reservationPaymentAttempts, ticketReservations } from "./ticket-reservation.schema";
 import { tickets } from "./ticket.schema";
 import { users } from "./user.schema";
 
@@ -39,6 +39,17 @@ export const ticketReservationsRelations = relations(ticketReservations, ({ one 
   user: one(users, { fields: [ticketReservations.userId], references: [users.id] }),
   event: one(events, { fields: [ticketReservations.eventId], references: [events.id] }),
   ticket: one(tickets),
+  latestPayment: one(reservationPaymentAttempts, {
+    fields: [ticketReservations.latestPaymentId],
+    references: [reservationPaymentAttempts.id],
+  }),
+}));
+
+export const reservationPaymentAttemptsRelations = relations(reservationPaymentAttempts, ({ one }) => ({
+  reservation: one(ticketReservations, {
+    fields: [reservationPaymentAttempts.reservationId],
+    references: [ticketReservations.id],
+  }),
 }));
 
 export const ticketsRelations = relations(tickets, ({ one, many }) => ({

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
-import { ICreateReservationDTO } from "../entity/ticket-reservation.interface";
+import { ICreateReservationDTO, IPayReservationDTO } from "../entity/ticket-reservation.interface";
 import TicketReservationService from "../service/ticket-reservation.service";
 
 class TicketReservationController {
@@ -27,6 +27,19 @@ class TicketReservationController {
     try {
       const reservation = await TicketReservationService.cancel(req.jwtPayload.id, req.params.reservationId);
       res.customSuccess(200, "Reservation cancelled successfully", reservation);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async pay(req: Request, res: Response, next: NextFunction) {
+    try {
+      const payload: IPayReservationDTO = req.body;
+      const reservation = await TicketReservationService.pay(req.jwtPayload.id, req.params.reservationId, payload);
+      const status = reservation.status === "payment_processing" ? 202 : 200;
+      const message = reservation.status === "payment_processing" ? "Payment is still processing" : "Payment completed";
+
+      res.customSuccess(status, message, reservation);
     } catch (error) {
       next(error);
     }

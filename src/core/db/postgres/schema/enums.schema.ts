@@ -6,6 +6,14 @@ export const eventStatusEnum = pgEnum("event_status", ["draft", "published", "ca
 
 export const ticketStatusEnum = pgEnum("ticket_status", ["valid", "void", "refunded"]);
 
-export const reservationStatusEnum = pgEnum("reservation_status", ["pending", "paid", "expired", "cancelled"]);
+export const reservationStatusEnum = pgEnum("reservation_status", [
+  "pending",
+  "payment_processing",
+  "paid",
+  "expired",
+  "cancelled",
+]);
+
+export const paymentAttemptStatusEnum = pgEnum("payment_attempt_status", ["processing", "succeeded", "failed"]);
 
 export const checkInStatusEnum = pgEnum("check_in_status", ["success", "duplicate", "invalid", "denied"]);
