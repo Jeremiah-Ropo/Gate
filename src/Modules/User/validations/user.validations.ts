@@ -4,10 +4,17 @@ import validator from "validator";
 import { CustomError } from "core/global/errors";
 
 export const validateUpdateUser = async (req: Request, res: Response, next: NextFunction) => {
-  const { firstName, lastName, phoneNumber } = req.body as {
+  if (
+    !req.body ||
+    Array.isArray(req.body) ||
+    typeof req.body !== "object" ||
+    Object.keys(req.body).some((key) => !["firstName", "lastName"].includes(key))
+  ) {
+    return next(new CustomError(422, "Validation", "Only firstName and lastName can be updated"));
+  }
+  const { firstName, lastName } = req.body as {
     firstName?: string;
     lastName?: string;
-    phoneNumber?: string;
   };
 
   if (firstName !== undefined && (typeof firstName !== "string" || validator.isEmpty(firstName.trim()))) {
@@ -15,9 +22,6 @@ export const validateUpdateUser = async (req: Request, res: Response, next: Next
   }
   if (lastName !== undefined && (typeof lastName !== "string" || validator.isEmpty(lastName.trim()))) {
     return next(new CustomError(422, "Validation", "lastName must be a non-empty string"));
-  }
-  if (phoneNumber !== undefined && typeof phoneNumber !== "string") {
-    return next(new CustomError(422, "Validation", "phoneNumber must be a string"));
   }
 
   return next();

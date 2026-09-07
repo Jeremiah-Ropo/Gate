@@ -1,7 +1,7 @@
 import { Application } from "express";
 
 import "core/global/entities/constants";
-import AuthRoutes from "Modules/Auth/routes/auth.routes";
+import createAuthRoutes from "Modules/Auth/routes/auth.routes";
 import createCheckInRoutes from "Modules/CheckIn/routes/check-in.routes";
 import createEventRoutes from "Modules/Event/routes/event.routes";
 import createTicketRoutes from "Modules/Ticket/routes/ticket.routes";
@@ -17,12 +17,7 @@ export class SetupRouters {
   public static init(app: Application): void {
     logger.info("Setting up API routes");
 
-    app.use(
-      `${this.apiPrefix}/auth`,
-      throttleMiddleware(rateLimitPolicies.authIp),
-      throttleMiddleware(rateLimitPolicies.authAccount),
-      AuthRoutes,
-    );
+    app.use(`${this.apiPrefix}/auth`, throttleMiddleware(rateLimitPolicies.authIp), createAuthRoutes());
 
     const authenticated = [AuthGuardMiddleware.authenticate, throttleMiddleware(rateLimitPolicies.standardUser)];
     app.use(`${this.apiPrefix}/user`, authenticated, UserRoutes);
