@@ -6,7 +6,6 @@ import type {
   GateEvent,
   GateTicket,
   GateUser,
-  RegisterResult,
 } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/v1";
@@ -89,8 +88,8 @@ export interface RegisterPayload {
   password: string;
 }
 
-export function register(payload: RegisterPayload): Promise<RegisterResult> {
-  return request<RegisterResult>("/auth/register", {
+export function register(payload: RegisterPayload): Promise<AuthSession> {
+  return request<AuthSession>("/auth/register", {
     method: "POST",
     // The backend's idempotency middleware requires this on register (and on ticket claims
     // below) so an accidental double-submit or retry never creates a duplicate.
@@ -99,24 +98,10 @@ export function register(payload: RegisterPayload): Promise<RegisterResult> {
   });
 }
 
-export function verifyEmail(payload: { sessionId: string; token: string }): Promise<AuthSession> {
-  return request<AuthSession>("/auth/verify-email", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
 export function login(payload: { email: string; password: string }): Promise<AuthSession> {
   return request<AuthSession>("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
-}
-
-export function resendVerification(resendTokenSessionId: string): Promise<RegisterResult> {
-  return request<RegisterResult>("/auth/resend-verification", {
-    method: "POST",
-    body: JSON.stringify({ resendTokenSessionId }),
   });
 }
 
