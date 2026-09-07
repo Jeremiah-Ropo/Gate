@@ -17,10 +17,14 @@ import { CustomError } from "core/global/errors";
  * connectivity and without holding any list of valid tickets.
  *
  * The name rides inside the signature so door staff can check an attendee's ID against a
- * name the server vouched for, offline. Note that the payload is signed, not encrypted:
- * the name is readable by anyone who scans the QR. Signing buys integrity, not secrecy,
- * and secrecy would require putting a decryption secret on the door device — the exact
- * problem the key pair avoids.
+ * name fixed at issuance, offline. Be precise about what that proves: the name is supplied
+ * by the purchaser and is never identity-verified, so the signature shows only that it has
+ * not changed since the ticket was bought. It catches a ticket passed on after purchase,
+ * not a false name given at purchase.
+ *
+ * Note also that the payload is signed, not encrypted: the name is readable by anyone who
+ * scans the QR. Signing buys integrity, not secrecy, and secrecy would require putting a
+ * decryption secret on the door device — the exact problem the key pair avoids.
  */
 
 const SEPARATOR = ".";
@@ -95,14 +99,18 @@ export function signTicket(ticketId: string, eventId: string, holderName: string
     throw new CustomError(500, "InternalServer", "signTicket requires uuid ticketId and eventId");
   }
 
+  // 422 rather than 500 on the two checks below: the holder name is supplied by the
+  // purchaser at checkout, so a bad one is invalid input, not a server fault. Callers are
+  // expected to validate before reaching here; these are the last guard before something
+  // permanent gets signed.
   const name = holderName?.trim();
   // An empty name would render as a blank field at the door, which staff would read as a
   // system fault rather than as a ticket to refuse. Fail at issuance instead.
   if (!name) {
-    throw new CustomError(500, "InternalServer", "signTicket requires a holder name");
+    throw new CustomError(422, "Validation", "signTicket requires a holder name");
   }
   if (name.length > MAX_HOLDER_NAME_LENGTH) {
-    throw new CustomError(500, "InternalServer", `Holder name exceeds ${MAX_HOLDER_NAME_LENGTH} characters`);
+    throw new CustomError(422, "Validation", `Holder name exceeds ${MAX_HOLDER_NAME_LENGTH} characters`);
   }
 
   // base64url so the name cannot contain the separator, and so punctuation, accents and
