@@ -1,8 +1,8 @@
 import { relations } from "drizzle-orm";
 
-import { checkInDevices } from "./check-in-device.schema";
 import { checkIns } from "./check-in.schema";
 import { eventInventory } from "./event-inventory.schema";
+import { eventMembers } from "./event-member.schema";
 import { events } from "./event.schema";
 import { ticketReservations } from "./ticket-reservation.schema";
 import { tickets } from "./ticket.schema";
@@ -12,15 +12,17 @@ export * from "./enums.schema";
 export * from "./user.schema";
 export * from "./event.schema";
 export * from "./event-inventory.schema";
+export * from "./event-member.schema";
 export * from "./ticket.schema";
 export * from "./ticket-reservation.schema";
-export * from "./check-in-device.schema";
 export * from "./check-in.schema";
 
 export const usersRelations = relations(users, ({ many }) => ({
   events: many(events),
   tickets: many(tickets),
   ticketReservations: many(ticketReservations),
+  eventMemberships: many(eventMembers),
+  checkInsScanned: many(checkIns),
 }));
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
@@ -28,7 +30,13 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   inventory: one(eventInventory, { fields: [events.id], references: [eventInventory.eventId] }),
   tickets: many(tickets),
   ticketReservations: many(ticketReservations),
-  checkInDevices: many(checkInDevices),
+  members: many(eventMembers),
+  checkIns: many(checkIns),
+}));
+
+export const eventMembersRelations = relations(eventMembers, ({ one }) => ({
+  event: one(events, { fields: [eventMembers.eventId], references: [events.id] }),
+  user: one(users, { fields: [eventMembers.userId], references: [users.id] }),
 }));
 
 export const eventInventoryRelations = relations(eventInventory, ({ one }) => ({
@@ -51,13 +59,8 @@ export const ticketsRelations = relations(tickets, ({ one, many }) => ({
   checkIns: many(checkIns),
 }));
 
-export const checkInDevicesRelations = relations(checkInDevices, ({ one, many }) => ({
-  event: one(events, { fields: [checkInDevices.eventId], references: [events.id] }),
-  checkIns: many(checkIns),
-}));
-
 export const checkInsRelations = relations(checkIns, ({ one }) => ({
   ticket: one(tickets, { fields: [checkIns.ticketId], references: [tickets.id] }),
-  device: one(checkInDevices, { fields: [checkIns.deviceId], references: [checkInDevices.id] }),
+  event: one(events, { fields: [checkIns.eventId], references: [events.id] }),
   scannedByUser: one(users, { fields: [checkIns.scannedBy], references: [users.id] }),
 }));
