@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { expect } from "chai";
+import { DrizzleQueryError } from "drizzle-orm";
 
 import { ECheckInStatus, ETicketStatus } from "../src/core/global/entities/enums";
 import { CheckInService } from "../src/Modules/CheckIn/service/check-in.service";
@@ -57,6 +58,30 @@ const scan = () => ({
 });
 
 describe("Check-in success conflict", () => {
+  it("records the losing scan when Drizzle wraps the PostgreSQL constraint error", async () => {
+    const error = new DrizzleQueryError(
+      "insert into check_ins",
+      [],
+      uniqueViolation("check_ins_one_success_per_ticket"),
+    );
+    const ctx = buildService({ failCreateOnce: error });
+    const submitted = scan();
+    const [result] = await ctx.service.sync(SCANNED_BY, EVENT_ID, { scans: [submitted] });
+    expect(result.status).to.equal(ECheckInStatus.DUPLICATE);
+    expect(ctx.written[0].clientScanId).to.equal(submitted.clientScanId);
+  });
+
+  it("propagates wrapped errors for other constraints", async () => {
+    const error = new DrizzleQueryError(
+      "insert into check_ins",
+      [],
+      uniqueViolation("check_ins_client_scan_id_unique"),
+    );
+    const ctx = buildService({ failCreateOnce: error });
+    expect(await ctx.service.sync(SCANNED_BY, EVENT_ID, { scans: [scan()] }).catch((e) => e)).to.equal(error);
+    expect(ctx.written).to.have.lengthOf(0);
+  });
+
   it("records a duplicate when it loses the race for the success row", async () => {
     const ctx = buildService({ failCreateOnce: uniqueViolation("check_ins_one_success_per_ticket") });
 

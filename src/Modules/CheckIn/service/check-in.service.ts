@@ -1,4 +1,5 @@
 import { Service } from "typedi";
+import { DrizzleQueryError } from "drizzle-orm";
 
 import { ECheckInStatus, ETicketStatus } from "core/global/entities/enums";
 import ticketRepository from "Modules/Ticket/repository/ticket.repository";
@@ -20,7 +21,10 @@ const PG_UNIQUE_VIOLATION = "23505";
 const ONE_SUCCESS_PER_TICKET = "check_ins_one_success_per_ticket";
 
 function isOneSuccessPerTicketViolation(error: unknown): boolean {
-  const pgError = error as { code?: string; constraint?: string };
+  const pgError = (error instanceof DrizzleQueryError ? error.cause : error) as {
+    code?: string;
+    constraint?: string;
+  };
   return pgError?.code === PG_UNIQUE_VIOLATION && pgError?.constraint === ONE_SUCCESS_PER_TICKET;
 }
 
