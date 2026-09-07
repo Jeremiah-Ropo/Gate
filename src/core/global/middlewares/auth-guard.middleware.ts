@@ -1,7 +1,15 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request, RequestHandler, Response } from "express";
 
+import { ERole } from "../entities/enums";
 import { CustomError } from "../../global/errors";
 import { JwtPayload, isValidateJwtToken } from "../utils/jwt-handler";
+
+export const rolePolicies = {
+  organizer: [ERole.STAFF, ERole.ADMIN],
+  attendee: [ERole.ATTENDEE],
+  staff: [ERole.STAFF],
+  admin: [ERole.ADMIN],
+} as const;
 
 class AuthGuardMiddleware {
   static async authenticate(req: Request, res: Response, next: NextFunction) {
@@ -36,13 +44,13 @@ class AuthGuardMiddleware {
     }
   }
 
-  static authorize(allowedRoles: string[]) {
-    return async (req: Request, res: Response, next: NextFunction) => {
+  static authorize(allowedRoles: readonly ERole[]): RequestHandler {
+    return (req: Request, _res: Response, next: NextFunction) => {
       try {
         if (!req.jwtPayload) {
           return next(new CustomError(401, "Unauthorized", "User authentication context missing"));
         }
-        if (!allowedRoles.includes(req.jwtPayload.role)) {
+        if (!allowedRoles.includes(req.jwtPayload.role as ERole)) {
           return next(new CustomError(403, "Forbidden", "Access denied: insufficient privileges"));
         }
         return next();
