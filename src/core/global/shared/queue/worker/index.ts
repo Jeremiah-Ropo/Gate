@@ -1,11 +1,13 @@
 import { Worker } from "bullmq";
 
-import logger from "core/global/utils/logger";
+import { startTicketReservationWorker } from "Modules/TicketReservation/worker/ticket-reservation.worker";
 import { startEventCacheWorker } from "Modules/Event/queue/event-cache.worker";
+import logger from "core/global/utils/logger";
 
-export const startAllWorkers = (): Worker[] => {
+export const startAllWorkers = async (): Promise<Worker[]> => {
+  const ticketReservationWorker = await startTicketReservationWorker();
   // Domain slices own their handlers; this is only the registration point.
-  const workers: Worker[] = [startEventCacheWorker()];
+  const workers: Worker[] = [ticketReservationWorker, startEventCacheWorker()];
   logger.info({ workerCount: workers.length }, "All queue workers started");
   return workers;
 };

@@ -3,6 +3,7 @@ import { Service } from "typedi";
 
 import { withTransaction } from "core/db/postgres";
 import {
+  PAYMENT_RECOVERY_CLAIM_LEASE_SECONDS,
   PAYMENT_PROCESSING_TTL_SECONDS,
   PAYMENT_PROVIDER_TIMEOUT_MS,
   RESERVATION_TTL_SECONDS,
@@ -11,12 +12,15 @@ import { CustomError } from "core/global/errors";
 import eventRepository from "Modules/Event/repository/event.repository";
 import eventInventoryRepository from "Modules/Event/repository/event-inventory.repository";
 import ticketRepository from "Modules/Ticket/repository/ticket.repository";
+import userRepository from "Modules/User/repository/user.repository";
+import { signTicket, validateHolderName } from "core/global/utils/ticket-signature";
 import {
   ICreateReservationDTO,
   IPayReservationDTO,
   IPaymentProvider,
   IReservationResponseDTO,
   ITicketReservationService,
+  PaymentRecoveryStatus,
   PaymentProviderResult,
   PaymentProviderStatus,
 } from "../entity/ticket-reservation.interface";
@@ -34,6 +38,7 @@ class TicketReservationService implements ITicketReservationService {
   private readonly inventories = eventInventoryRepository;
   private readonly events = eventRepository;
   private readonly tickets = ticketRepository;
+  private readonly users = userRepository;
   private readonly paymentProvider: IPaymentProvider = paymentProvider;
 
   public static getInstance(): ITicketReservationService {
@@ -75,6 +80,63 @@ class TicketReservationService implements ITicketReservationService {
 
       return this.toResponse(reservation);
     });
+  }
+
+  async expireOverdueBatch(limit: number, maxEvents: number): Promise<number> {
+    if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(maxEvents) || maxEvents < 1) {
+      throw new Error("Reservation expiry limits must be positive integers");
+    }
+
+    return withTransaction(async (tx) => {
+      const reservations = this.reservations.withTx(tx);
+      const inventories = this.inventories.withTx(tx);
+      const expired = await reservations.expireOverduePending(limit, maxEvents);
+
+      if (expired.length === 0) return 0;
+      const releases = new Map<string, number>();
+
+      for (const reservation of expired) {
+        releases.set(reservation.eventId, (releases.get(reservation.eventId) ?? 0) + 1);
+      }
+
+      for (const [eventId, quantity] of releases) {
+        const inventory = await inventories.releaseReservedTickets(eventId, quantity);
+        if (!inventory) {
+          throw new CustomError(409, "Conflict", "Reservation inventory is inconsistent");
+        }
+      }
+
+      return expired.length;
+    });
+  }
+
+  async recoverOneStalePayment(): Promise<PaymentRecoveryStatus> {
+    const claimId = randomUUID();
+    const claimedUntil = new Date(Date.now() + PAYMENT_RECOVERY_CLAIM_LEASE_SECONDS * 1000);
+    const claimed = await withTransaction((tx) =>
+      this.paymentAttempts.withTx(tx).claimStaleProcessing(claimId, claimedUntil),
+    );
+
+    if (!claimed) return "none";
+
+    const status = await this.paymentProvider.getStatus(claimed.reference);
+
+    if (status === null) {
+      await this.restoreAfterPaymentFailure(claimed.userId, claimed.reservationId, claimed.id);
+      return "failed";
+    }
+
+    if (status === "succeeded") {
+      await this.claimPaidReservation(claimed.userId, claimed.reservationId, claimed.id);
+      return "succeeded";
+    }
+
+    if (status === "failed") {
+      await this.restoreAfterPaymentFailure(claimed.userId, claimed.reservationId, claimed.id);
+      return "failed";
+    }
+
+    return status;
   }
 
   async getById(userId: string, reservationId: string): Promise<IReservationResponseDTO> {
@@ -141,7 +203,13 @@ class TicketReservationService implements ITicketReservationService {
       throw new CustomError(409, "Conflict", "Reservation has expired; please refresh and try again");
     }
 
-    const payment = await this.startPayment(userId, reservationId);
+    const owner = await this.users.findById(userId);
+    if (!owner) {
+      throw new CustomError(404, "NotFound", "Ticket owner not found");
+    }
+    const holderName = validateHolderName(`${owner.firstName} ${owner.lastName}`);
+
+    const payment = await this.startPayment(userId, reservationId, holderName);
     if (!payment) {
       const latest = await this.getById(userId, reservationId);
       if (latest.status === "payment_processing" || latest.status === "paid") {
@@ -164,7 +232,7 @@ class TicketReservationService implements ITicketReservationService {
     return this.handlePaymentResult(userId, reservationId, payment.id, result);
   }
 
-  private async startPayment(userId: string, reservationId: string) {
+  private async startPayment(userId: string, reservationId: string, holderName: string) {
     const paymentAttemptId = randomUUID();
     const reference = `reservation-payment-${randomUUID()}`;
     const processingExpiresAt = new Date(Date.now() + PAYMENT_PROCESSING_TTL_SECONDS * 1000);
@@ -188,6 +256,7 @@ class TicketReservationService implements ITicketReservationService {
         id: paymentAttemptId,
         reservationId,
         reference,
+        holderName,
       });
 
       return { id: payment.id, reference: payment.reference };
@@ -223,6 +292,11 @@ class TicketReservationService implements ITicketReservationService {
 
     if (status === "succeeded") {
       return this.claimPaidReservation(userId, reservationId, paymentAttemptId);
+    }
+
+    if (status === null) {
+      await this.restoreAfterPaymentFailure(userId, reservationId, paymentAttemptId);
+      throw new CustomError(402, "BadRequest", "The payment was not found by the provider");
     }
 
     if (status === "failed") {
@@ -267,11 +341,13 @@ class TicketReservationService implements ITicketReservationService {
         throw new CustomError(409, "Conflict", "Reservation inventory is unavailable; please refresh and try again");
       }
 
+      const ticketId = randomUUID();
       const ticket = await tickets.create({
+        id: ticketId,
         eventId: reservation.eventId,
         reservationId: reservation.id,
         ownerId: userId,
-        qrPayload: randomUUID(),
+        qrPayload: signTicket(ticketId, reservation.eventId, payment.holderName),
       });
 
       return this.toResponse(reservation, payment, ticket.id);
@@ -290,6 +366,10 @@ class TicketReservationService implements ITicketReservationService {
 
       const payment = await paymentAttempts.markFailed(paymentAttemptId, now);
       if (!payment) {
+        const current = await reservations.findByIdForUser(reservationId, userId);
+        if (current?.reservation.status === "pending") {
+          return;
+        }
         throw new CustomError(409, "Conflict", "Payment state changed; please refresh and try again");
       }
 

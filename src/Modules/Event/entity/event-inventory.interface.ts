@@ -13,6 +13,7 @@ export interface IEventInventoryRepository {
   findByEventIds(eventIds: string[]): Promise<Map<string, EventInventory>>;
   reserveTicket(eventId: string): Promise<EventInventory | null>;
   sellReservedTicket(eventId: string): Promise<EventInventory | null>;
+  releaseReservedTickets(eventId: string, quantity: number): Promise<EventInventory | null>;
   releaseReservedTicket(eventId: string): Promise<EventInventory | null>;
   setCapacity(eventId: string, capacity: number): Promise<EventInventory | null>;
 }

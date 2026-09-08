@@ -30,7 +30,23 @@ import { CustomError } from "core/global/errors";
 const SEPARATOR = ".";
 
 // Guards the QR against a name long enough to hurt scan reliability in poor light.
-const MAX_HOLDER_NAME_LENGTH = 96;
+export const MAX_HOLDER_NAME_LENGTH = 96;
+
+/**
+ * Normalizes and validates the name that will be bound to a ticket QR payload.
+ * This is exported so payment can reject bad account names before contacting the
+ * provider, rather than discovering the problem after a successful charge.
+ */
+export function validateHolderName(holderName: string): string {
+  const name = holderName?.trim();
+  if (!name) {
+    throw new CustomError(422, "Validation", "A holder name is required");
+  }
+  if (name.length > MAX_HOLDER_NAME_LENGTH) {
+    throw new CustomError(422, "Validation", `Holder name exceeds ${MAX_HOLDER_NAME_LENGTH} characters`);
+  }
+  return name;
+}
 
 export interface IVerifiedTicket {
   ok: boolean;
@@ -99,19 +115,9 @@ export function signTicket(ticketId: string, eventId: string, holderName: string
     throw new CustomError(500, "InternalServer", "signTicket requires uuid ticketId and eventId");
   }
 
-  // 422 rather than 500 on the two checks below: the holder name is supplied by the
-  // purchaser at checkout, so a bad one is invalid input, not a server fault. Callers are
-  // expected to validate before reaching here; these are the last guard before something
-  // permanent gets signed.
-  const name = holderName?.trim();
-  // An empty name would render as a blank field at the door, which staff would read as a
-  // system fault rather than as a ticket to refuse. Fail at issuance instead.
-  if (!name) {
-    throw new CustomError(422, "Validation", "signTicket requires a holder name");
-  }
-  if (name.length > MAX_HOLDER_NAME_LENGTH) {
-    throw new CustomError(422, "Validation", `Holder name exceeds ${MAX_HOLDER_NAME_LENGTH} characters`);
-  }
+  // Keep this guard at the signing boundary too: callers should validate before payment,
+  // but no invalid name may ever become part of a permanent signed ticket.
+  const name = validateHolderName(holderName);
 
   // base64url so the name cannot contain the separator, and so punctuation, accents and
   // non-Latin scripts survive the round trip unaltered.

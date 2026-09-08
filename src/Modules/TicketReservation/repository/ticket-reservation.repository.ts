@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, lte, sql } from "drizzle-orm";
 
 import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { ITicketReservationRepository, TicketReservationWithDetails } from "../entity/ticket-reservation.interface";
@@ -94,6 +94,36 @@ class TicketReservationRepository implements ITicketReservationRepository {
       )
       .limit(1);
     return reservation ?? null;
+  }
+
+  async expireOverduePending(limit: number, maxEvents: number): Promise<TicketReservation[]> {
+    const eventBatch = this.db.$with("reservation_expiry_events").as(
+      this.db
+        .select({ eventId: TicketReservationTable.eventId })
+        .from(TicketReservationTable)
+        .where(and(eq(TicketReservationTable.status, "pending"), lte(TicketReservationTable.expiresAt, sql`now()`)))
+        .groupBy(TicketReservationTable.eventId)
+        .orderBy(asc(TicketReservationTable.eventId))
+        .limit(maxEvents),
+    );
+    const expired = this.db.$with("expired_reservations").as(
+      this.db
+        .select({ id: TicketReservationTable.id })
+        .from(TicketReservationTable)
+        .innerJoin(eventBatch, eq(TicketReservationTable.eventId, eventBatch.eventId))
+        .where(and(eq(TicketReservationTable.status, "pending"), lte(TicketReservationTable.expiresAt, sql`now()`)))
+        .orderBy(asc(TicketReservationTable.eventId), asc(TicketReservationTable.id))
+        .limit(limit)
+        .for("update", { of: TicketReservationTable, skipLocked: true }),
+    );
+
+    return this.db
+      .with(eventBatch, expired)
+      .update(TicketReservationTable)
+      .set({ status: "expired", updatedAt: sql`now()` })
+      .from(expired)
+      .where(eq(TicketReservationTable.id, expired.id))
+      .returning();
   }
 
   async cancelPending(id: string, userId: string, now: Date): Promise<TicketReservation | null> {

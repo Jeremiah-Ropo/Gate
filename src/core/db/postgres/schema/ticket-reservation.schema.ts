@@ -30,7 +30,10 @@ export const reservationPaymentAttempts = pgTable(
       .notNull()
       .references(() => ticketReservations.id),
     reference: varchar("reference", { length: 255 }).notNull().unique(),
+    holderName: varchar("holder_name", { length: 96 }).notNull(),
     status: paymentAttemptStatusEnum("status").notNull().default("processing"),
+    recoveryClaimId: uuid("recovery_claim_id"),
+    recoveryClaimedUntil: timestamp("recovery_claimed_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

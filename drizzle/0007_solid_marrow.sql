@@ -1,0 +1,1 @@
+ALTER TABLE "reservation_payment_attempts" ADD COLUMN "holder_name" varchar(96) NOT NULL;

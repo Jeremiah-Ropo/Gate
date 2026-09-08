@@ -16,6 +16,8 @@ export const reservationStatusEnum = pgEnum("reservation_status", [
 
 export const paymentAttemptStatusEnum = pgEnum("payment_attempt_status", ["processing", "succeeded", "failed"]);
 
+export const stubPaymentStatusEnum = pgEnum("stub_payment_status", ["processing", "succeeded", "failed"]);
+
 export const checkInStatusEnum = pgEnum("check_in_status", ["success", "duplicate", "invalid", "denied"]);
 
 // Event-level roles, distinct from the global users.role. Someone who scans at the door is
