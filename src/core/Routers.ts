@@ -4,6 +4,7 @@ import createAuthRoutes from "Modules/Auth/routes/auth.routes";
 import createCheckInRoutes from "Modules/CheckIn/routes/check-in.routes";
 import EventMemberRoutes from "Modules/EventMember/routes/event-member.routes";
 import createEventConsoleRoutes from "Modules/Event/routes/event-console.routes";
+import { createPublicEventRoutes } from "Modules/Event/routes/public-event.routes";
 import createEventRoutes from "Modules/Event/routes/event.routes";
 import createTicketRoutes from "Modules/Ticket/routes/ticket.routes";
 import TicketReservationRoutes from "Modules/TicketReservation/routes/ticket-reservation.routes";
@@ -26,11 +27,12 @@ export class SetupRouters {
     app.use(`${this.apiPrefix}/console`, createEventConsoleRoutes());
 
     app.use(`${this.apiPrefix}/user`, authenticated, UserRoutes);
+    app.use(`${this.apiPrefix}/events`, throttleMiddleware(rateLimitPolicies.publicBrowse), createPublicEventRoutes());
     app.use(`${this.apiPrefix}/event`, authenticated, createEventRoutes());
     app.use(`${this.apiPrefix}/ticket`, authenticated, createTicketRoutes());
     app.use(`${this.apiPrefix}/event-members`, authenticated, EventMemberRoutes);
     app.use(`${this.apiPrefix}/check-in`, createCheckInRoutes());
-    app.use(this.apiPrefix, authenticated, TicketReservationRoutes);
+    app.use(this.apiPrefix, authenticated, TicketReservationRoutes());
     logger.info("API routes setup completed");
   }
 }

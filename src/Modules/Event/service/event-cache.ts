@@ -25,7 +25,7 @@ import { IEventCache, IPublishedEventDescriptor } from "../entity/event.interfac
 // boundary, but browse is the hottest path in the system and this puts an inventory query behind
 // each one — worth agreeing with Inventory at contract review whether they expose a cached
 // counter read instead.
-const KEY_PREFIX = "events:published";
+const KEY_PREFIX = "events:published:v2";
 const LIST_KEY = `${KEY_PREFIX}:list`;
 const descriptorKey = (eventId: string): string => `${KEY_PREFIX}:${eventId}`;
 

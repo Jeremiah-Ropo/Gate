@@ -3,24 +3,18 @@ import { Link } from "react-router-dom";
 
 import { EventStatusBadge } from "@/components/EventStatusBadge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/StatusMessage";
-import { useAuth } from "@/context/AuthContext";
 import { errorMessage } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { queryKeys } from "@/lib/queryClient";
 import { useGateClient } from "@/lib/useGateClient";
 
 export function AdminEventsPage() {
-  const { user } = useAuth();
   const client = useGateClient();
   const { data: events, isPending, isError, error } = useQuery({
-    queryKey: queryKeys.events,
-    queryFn: client.listEvents,
+    queryKey: ["managed-events"],
+    queryFn: client.listManagedEvents,
   });
 
-  // GET /event returns every event site-wide; an event can only be edited by whoever
-  // created it (backend enforces this via ownership, not role), so this dashboard only
-  // lists — and only lets you act on — events this admin created.
-  const mine = (events ?? []).filter((event) => event.createdBy === user?.id);
+  const mine = events ?? [];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">

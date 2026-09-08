@@ -46,6 +46,10 @@ describe("EventProjectionService", () => {
 
       const summit = events[1];
       expect(summit).to.deep.equal({
+        address: null,
+        coverImage: null,
+        ticketPrice: 0,
+        currency: "NGN",
         id: PUBLISHED_ID,
         name: "Lagos Tech Summit",
         description: null,
@@ -57,7 +61,7 @@ describe("EventProjectionService", () => {
         remaining: 70,
       });
       // The projection is the contract other slices build on: internals must not ride along.
-      expect(summit).to.not.have.any.keys("createdBy", "slug", "ticketPrice", "coverImage", "status");
+      expect(summit).to.not.have.any.keys("createdBy", "slug", "status");
     });
 
     it("returns an empty list when nothing is published", async () => {

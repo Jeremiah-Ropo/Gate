@@ -14,7 +14,7 @@ function toDatetimeLocal(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const STATUS_OPTIONS: EventStatus[] = ["draft", "published", "cancelled", "completed"];
+const STATUS_OPTIONS: EventStatus[] = ["cancelled", "completed"];
 
 export function EventFormPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -22,8 +22,8 @@ export function EventFormPage() {
   const client = useGateClient();
 
   const { data: existing, isPending: isLoadingExisting } = useQuery({
-    queryKey: queryKeys.event(eventId ?? ""),
-    queryFn: () => client.getEvent(eventId as string),
+    queryKey: ["managed-events", eventId],
+    queryFn: () => client.getManagedEvent(eventId as string),
     enabled: isEditing,
   });
 
@@ -69,11 +69,12 @@ function EventFormFields({
         currency,
       };
       return isEditing
-        ? client.updateEvent(eventId as string, { ...payload, status })
+        ? client.updateEvent(eventId as string, { ...payload, ...(status !== existing?.status ? { status } : {}) })
         : client.createEvent({ ...payload, capacity: Number(capacity) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.events });
+      queryClient.invalidateQueries({ queryKey: ["managed-events"] });
       navigate("/admin/events");
     },
   });
@@ -180,6 +181,7 @@ function EventFormFields({
             <input
               id="currency"
               required
+              disabled={isEditing}
               maxLength={3}
               value={currency}
               onChange={(e) => setCurrency(e.target.value.toUpperCase())}
@@ -203,7 +205,7 @@ function EventFormFields({
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
             />
             <p className="mt-1 text-xs text-neutral-400">
-              How many people this event can hold. This can't be changed after the event is created.
+              How many people this event can hold. Capacity editing is not available in this release.
             </p>
           </div>
         )}
@@ -211,7 +213,7 @@ function EventFormFields({
         {isEditing && existing?.inventory && (
           <div className="rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
             Capacity {existing.inventory.capacity} · sold {existing.inventory.sold} · reserved{" "}
-            {existing.inventory.reserved} · {existing.inventory.remaining} remaining. Capacity is fixed at creation.
+            {existing.inventory.reserved} · {existing.inventory.remaining} remaining. Capacity editing is not available in this release.
           </div>
         )}
 
@@ -226,14 +228,15 @@ function EventFormFields({
               onChange={(e) => setStatus(e.target.value as EventStatus)}
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
             >
-              {STATUS_OPTIONS.map((option) => (
+              <option value={existing?.status}>{existing?.status} (current)</option>
+              {STATUS_OPTIONS.filter(option => option !== existing?.status).map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
               ))}
             </select>
             <p className="mt-1 text-xs text-neutral-400">
-              Publish it to make it visible on public browse. Cancel or mark it completed to close ticket claims.
+              New events are published immediately. Cancel or complete an existing event to close claims.
             </p>
           </div>
         )}
@@ -245,7 +248,7 @@ function EventFormFields({
           disabled={mutation.isPending}
           className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
         >
-          {mutation.isPending ? "Saving…" : isEditing ? "Save changes" : "Create event"}
+          {mutation.isPending ? "Saving…" : isEditing ? "Save changes" : "Publish event"}
         </button>
       </form>
     </div>

@@ -4,11 +4,15 @@ import { Event } from "./event.model";
 
 /**
  * Projects a stored row onto the event-owned fields this slice publishes. Selecting explicitly
- * rather than spreading the row keeps internals — slug, createdBy, ticketPrice, coverImage — out
+ * rather than spreading the row keeps internals — slug and createdBy — out
  * of the contract, so a column added later is opt-in instead of leaked by default.
  */
 export const toDescriptor = (event: Event): IPublishedEventDescriptor => ({
   id: event.id,
+  address: event.address,
+  coverImage: event.coverImage,
+  ticketPrice: event.ticketPrice,
+  currency: event.currency,
   name: event.name,
   description: event.description,
   venue: event.venue,

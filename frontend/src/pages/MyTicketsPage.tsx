@@ -41,7 +41,9 @@ export function MyTicketsPage() {
               key={ticket.id}
               className="flex flex-col items-center gap-4 rounded-lg border border-neutral-200 p-4 sm:flex-row sm:items-start"
             >
-              <QrCode value={ticket.qrPayload} size={120} />
+              {ticket.qrPayload.split(".").length === 4
+                ? <QrCode value={ticket.qrPayload} size={120} />
+                : <p className="max-w-48 text-sm text-amber-700">Signed QR not available yet. This ticket is not ready for door scanning.</p>}
               <div className="flex-1 text-center sm:text-left">
                 <span
                   className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[ticket.status]}`}

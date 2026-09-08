@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
+import EventProjectionService from "../service/event-projection.service";
 import { CustomError } from "core/global/errors";
 import EventService from "../service/event.service";
 import { ICreateEventDTO, IPublishEventDTO, IUpdateEventDTO } from "../entity/event.interface";
@@ -17,7 +18,7 @@ class EventController {
 
   public static async list(req: Request, res: Response, next: NextFunction) {
     try {
-      const events = await EventService.list();
+      const events = await EventProjectionService.listPublished();
       res.customSuccess(200, "Events retrieved successfully", events);
     } catch (error) {
       next(error);
@@ -26,7 +27,7 @@ class EventController {
 
   public static async getById(req: Request, res: Response, next: NextFunction) {
     try {
-      const event = await EventService.getById(req.params.eventId);
+      const event = await EventProjectionService.getPublishedById(req.params.eventId);
       res.customSuccess(200, "Event retrieved successfully", event);
     } catch (error) {
       next(error);

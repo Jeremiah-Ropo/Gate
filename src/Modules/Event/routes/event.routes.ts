@@ -10,8 +10,6 @@ const createEventRoutes = (): Router => {
   const organizerOnly = AuthGuardMiddleware.authorize(rolePolicies.organizer);
   const adminLimit = throttleMiddleware(rateLimitPolicies.adminMutation);
 
-  router.get("/", EventController.list);
-  router.get("/:eventId", EventController.getById);
   router.post("/", [organizerOnly, adminLimit, validateCreateEvent], EventController.create);
   // Publication is its own endpoint because it creates the event and its inventory row in one
   // transaction; an ordinary update cannot reach `published` (see EventService.updateEvent).

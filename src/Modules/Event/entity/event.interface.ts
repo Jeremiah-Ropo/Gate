@@ -41,6 +41,10 @@ export interface IUpdateEventDTO {
  * events_inventory belongs in here.
  */
 export interface IPublishedEventDescriptor {
+  address: string | null;
+  coverImage: string | null;
+  ticketPrice: number;
+  currency: string;
   id: string;
   name: string;
   description: string | null;

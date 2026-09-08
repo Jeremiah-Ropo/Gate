@@ -8,6 +8,10 @@ const EVENT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 const descriptor: IPublishedEventDescriptor = {
   id: EVENT_ID,
+  address: null,
+  coverImage: null,
+  ticketPrice: 100,
+  currency: "NGN",
   name: "Lagos Tech Summit",
   description: null,
   venue: "Landmark Centre",
@@ -78,10 +82,10 @@ describe("EventCache", () => {
     await eventCache.invalidateEvent(EVENT_ID);
 
     expect(deleted).to.deep.equal([
-      `events:published:${EVENT_ID}`,
-      "events:published:list",
-      `events:published:${EVENT_ID}`,
-      "events:published:list",
+      `events:published:v2:${EVENT_ID}`,
+      "events:published:v2:list",
+      `events:published:v2:${EVENT_ID}`,
+      "events:published:v2:list",
     ]);
   });
 });
