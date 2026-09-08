@@ -1,6 +1,6 @@
 {
-  "id": "5aee2706-789e-40e7-9afe-db8e121cfd4d",
-  "prevId": "13683bbe-2262-4c81-ac19-439cb2ee0b9e",
+  "id": "548cf4a5-d083-4e72-b44c-cf43740b1a7d",
+  "prevId": "5aee2706-789e-40e7-9afe-db8e121cfd4d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -652,6 +652,18 @@
           "notNull": true,
           "default": "'processing'"
         },
+        "recovery_claim_id": {
+          "name": "recovery_claim_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recovery_claimed_until": {
+          "name": "recovery_claimed_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -813,6 +825,58 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stub_payment_requests": {
+      "name": "stub_payment_requests",
+      "schema": "",
+      "columns": {
+        "reference": {
+          "name": "reference",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "stub_payment_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completes_at": {
+          "name": "completes_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -1045,6 +1109,15 @@
         "paid",
         "expired",
         "cancelled"
+      ]
+    },
+    "public.stub_payment_status": {
+      "name": "stub_payment_status",
+      "schema": "public",
+      "values": [
+        "processing",
+        "succeeded",
+        "failed"
       ]
     },
     "public.ticket_status": {

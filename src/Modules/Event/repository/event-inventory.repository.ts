@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { IEventInventoryRepository } from "../entity/event-inventory.interface";
@@ -36,6 +36,15 @@ class EventInventoryRepository implements IEventInventoryRepository {
       .where(eq(EventInventoryTable.eventId, eventId))
       .limit(1);
     return inventory ?? null;
+  }
+
+  /** Batched sibling of findByEventId, so a catalogue listing costs one query rather than N. */
+  async findByEventIds(eventIds: string[]): Promise<Map<string, EventInventory>> {
+    if (eventIds.length === 0) {
+      return new Map();
+    }
+    const rows = await this.db.select().from(EventInventoryTable).where(inArray(EventInventoryTable.eventId, eventIds));
+    return new Map(rows.map((row) => [row.eventId, row]));
   }
 
   async reserveTicket(eventId: string): Promise<EventInventory | null> {

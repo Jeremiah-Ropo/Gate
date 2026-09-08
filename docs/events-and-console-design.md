@@ -1,6 +1,6 @@
 # Slice design — Events and console
 
-**Owner:** Victor Emeke · **Status:** for review · **Date:** 2026-09-04
+**Owner:** Victor Emeke · **Status:** for review · **Date:** 2026-09-07
 
 ## What this slice owns
 
@@ -43,11 +43,14 @@ never leaked into it by default.
 
 Every number describing stock lives in Inventory's `events_inventory` row: `capacity`, `reserved`,
 `sold`, and `remaining`, which Postgres generates as `capacity - reserved - sold`. Events reads them
-through `IEventInventoryReader` and never writes a counter.
+through Inventory's own `IEventInventoryRepository` and never writes a counter. This slice added
+`findByEventIds` to that repository so a catalogue listing costs one query rather than one per
+event — flagged for Inventory's review as a change to a shared dependency.
 
-Events does set `capacity` once, at publication, by creating the inventory row in the same
-transaction as the event — Inventory's schema requires that row to exist from the start. After that
-there is no path in this slice to change it; altering capacity is an Inventory operation.
+Events does set `capacity` once, at publication, by calling `inventory.withTx(tx).create(...)`
+inside the same transaction as the event — Inventory's schema requires that row to exist from the
+start. After that there is no path in this slice to change it; altering capacity is an Inventory
+operation.
 
 When Inventory cannot be read, the counters project as **`null`, meaning unknown — never `0`, which
 would read as sold out**.
@@ -73,13 +76,22 @@ Reasoning is recorded in [ADR 0004](adr/0004-events-read-model-caching.md).
 
 ## Write path
 
-| Method | Path                  | Auth                             |
-| ------ | --------------------- | -------------------------------- |
-| POST   | `/v1/events/publish`  | staff/admin                      |
-| POST   | `/v1/events`          | staff/admin (creates a draft)    |
-| PUT    | `/v1/events/:eventId` | staff/admin                      |
-| GET    | `/v1/console`         | none (shell only, holds no data) |
-| GET    | `/v1/console/events`  | staff/admin                      |
+| Method | Path                 | Auth                             |
+| ------ | -------------------- | -------------------------------- |
+| POST   | `/v1/event/publish`  | staff/admin                      |
+| POST   | `/v1/event`          | staff/admin (creates a draft)    |
+| PUT    | `/v1/event/:eventId` | staff/admin                      |
+| GET    | `/v1/console`        | none (shell only, holds no data) |
+| GET    | `/v1/console/events` | staff/admin                      |
+
+Two rules protect that transaction:
+
+- **Edits are built from an allowlist**, never from spreading the request body. Review reproduced
+  reassigning `createdBy` to take over another organiser's event; anything not explicitly named is
+  now ignored, so a new column is opt-in to editing rather than editable by default.
+- **An ordinary edit cannot set status to `published`** (409). Publishing that way would skip the
+  transaction above and leave an event on the public catalogue with no inventory row, which nobody
+  could ever claim a ticket for. Other transitions, such as cancelling, still work.
 
 After a mutation **commits**, the service queues an `event-cache-invalidate` job on
 `event-cache-queue`. Publishing before commit is the bug this ordering exists to prevent: a
@@ -107,11 +119,13 @@ fallback rather than assuming it.
 
 ## Known gaps and open questions
 
-- **Who creates the inventory row?** This slice writes it directly inside the publish transaction,
-  behind `IEventInventoryWriter`. Inventory's schema comment requires the row to exist from the
-  start but exposes no method to call. If Inventory would rather own that write, it is a one-line
-  swap of the implementation.
-- Public browse needs a URL prefix that does not collide with `/v1/events` — for API contract review.
+- ~~Who creates the inventory row?~~ **Answered.** Inventory shipped `IEventInventoryRepository`
+  with `withTx`, so publish calls into their code rather than inserting into their table.
+- `findByEventIds` was added to Inventory's repository by this slice; Inventory should confirm they
+  are happy owning it.
+- Public browse needs its own URL prefix for anonymous reads. This slice deliberately stays on
+  `/v1/event`, matching main and the frontend's `lib/api.ts`, so nothing here has to be
+  renamed for browse to land.
 - `coverImage` is not in the projection; ask if browse needs it.
 - `main` currently does not compile: four other slices still reference columns removed in #3. See
   [the bug report](bug-reports/0001-schema-change-breaks-five-slices.md).
