@@ -1,5 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
+import { EEventStatus } from "core/global/entities/enums";
 import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { EventTable, Event, NewEvent } from "../entity/event.model";
 import { IEventRepository } from "../entity/event.interface";
@@ -40,7 +41,35 @@ class EventRepository implements IEventRepository {
   }
 
   async list(): Promise<Event[]> {
-    return this.db.select().from(EventTable).orderBy(desc(EventTable.starts_at));
+    return this.db.select().from(EventTable).orderBy(asc(EventTable.starts_at));
+  }
+
+  /** Public catalogue: published events only, soonest first, served by events_status_starts_at_idx. */
+  async listPublished(): Promise<Event[]> {
+    return this.db
+      .select()
+      .from(EventTable)
+      .where(eq(EventTable.status, EEventStatus.PUBLISHED))
+      .orderBy(asc(EventTable.starts_at));
+  }
+
+  /** Status is part of the predicate so an unpublished event is indistinguishable from a missing one. */
+  async findPublishedById(id: string): Promise<Event | null> {
+    const [event] = await this.db
+      .select()
+      .from(EventTable)
+      .where(and(eq(EventTable.id, id), eq(EventTable.status, EEventStatus.PUBLISHED)))
+      .limit(1);
+    return event ?? null;
+  }
+
+  /** Console listing: every event this organiser owns, drafts included. */
+  async listByOrganiser(organiserId: string): Promise<Event[]> {
+    return this.db
+      .select()
+      .from(EventTable)
+      .where(eq(EventTable.createdBy, organiserId))
+      .orderBy(asc(EventTable.starts_at));
   }
 
   async update(id: string, data: Partial<NewEvent>): Promise<Event | null> {

@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 
 import { CustomError } from "core/global/errors";
 import EventService from "../service/event.service";
-import { ICreateEventDTO, IUpdateEventDTO } from "../entity/event.interface";
+import { ICreateEventDTO, IPublishEventDTO, IUpdateEventDTO } from "../entity/event.interface";
 
 class EventController {
   public static async create(req: Request, res: Response, next: NextFunction) {
@@ -28,6 +28,16 @@ class EventController {
     try {
       const event = await EventService.getById(req.params.eventId);
       res.customSuccess(200, "Event retrieved successfully", event);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async publish(req: Request, res: Response, next: NextFunction) {
+    try {
+      const payload: IPublishEventDTO = req.body;
+      const event = await EventService.publishEvent(req.jwtPayload.id, payload);
+      res.customSuccess(201, "Event published successfully", event);
     } catch (error) {
       next(error);
     }

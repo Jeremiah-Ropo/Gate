@@ -36,6 +36,13 @@
       "when": 1788766432656,
       "tag": "0004_reservation_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788820725673,
+      "tag": "0005_event_read_indexes",
+      "breakpoints": true
     }
   ]
 }
