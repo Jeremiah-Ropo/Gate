@@ -2,6 +2,10 @@ import { Service } from "typedi";
 import { DrizzleQueryError } from "drizzle-orm";
 
 import { ECheckInStatus, ETicketStatus } from "core/global/entities/enums";
+import { CustomError } from "core/global/errors";
+import { getPublicKeyForDistribution } from "core/global/utils/ticket-signature";
+import { IEventRepository } from "Modules/Event/entity/event.interface";
+import eventRepository from "Modules/Event/repository/event.repository";
 import ticketRepository from "Modules/Ticket/repository/ticket.repository";
 import checkInRepository from "../repository/check-in.repository";
 import { ITicketRepository } from "Modules/Ticket/entity/ticket.interface";
@@ -9,6 +13,7 @@ import {
   ICheckInRepository,
   ICheckInResult,
   ICheckInService,
+  ICheckInSessionManifest,
   IOfflineScanDTO,
   ISyncCheckInDTO,
 } from "../entity/check-in.interface";
@@ -37,6 +42,7 @@ export class CheckInService implements ICheckInService {
   constructor(
     private readonly repository: ICheckInRepository = checkInRepository,
     private readonly tickets: ITicketRepository = ticketRepository,
+    private readonly events: IEventRepository = eventRepository,
   ) {}
 
   public static getInstance(): ICheckInService {
@@ -197,6 +203,37 @@ export class CheckInService implements ICheckInService {
       results.push(await this.processScan(scannedBy, eventId, scan));
     }
     return results;
+  }
+
+  /**
+   * Everything a door needs for a shift, fetched once. The public key is what lets a device
+   * decide admission with no connectivity at all; the two id lists cover the cases a signature
+   * cannot, because both describe things that happened after the ticket was signed.
+   *
+   * Read in parallel: the door is waiting on this before it can scan anyone, and the three
+   * reads have no dependency on each other.
+   */
+  async getSessionManifest(eventId: string): Promise<ICheckInSessionManifest> {
+    const event = await this.events.findById(eventId);
+    if (!event) {
+      throw new CustomError(404, "NotFound", "Event not found");
+    }
+
+    const [checkedInTicketIds, blockedTicketIds] = await Promise.all([
+      this.repository.listSuccessTicketIdsByEvent(eventId),
+      this.tickets.listBlockedIdsByEvent(eventId),
+    ]);
+
+    return {
+      eventId: event.id,
+      eventName: event.name,
+      // Throws if the configured key is malformed, so a broken deployment surfaces here, at
+      // the start of a shift, rather than at the door on the first scan.
+      publicKey: getPublicKeyForDistribution(),
+      issuedAt: new Date().toISOString(),
+      checkedInTicketIds,
+      blockedTicketIds,
+    };
   }
 
   async listByTicket(ticketId: string): Promise<CheckIn[]> {

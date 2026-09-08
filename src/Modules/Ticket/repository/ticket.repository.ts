@@ -1,5 +1,6 @@
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ne } from "drizzle-orm";
 
+import { ETicketStatus } from "core/global/entities/enums";
 import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { ITicketRepository } from "../entity/ticket.interface";
 import { NewTicket, Ticket, TicketTable } from "../entity/ticket.model";
@@ -50,6 +51,17 @@ class TicketRepository implements ITicketRepository {
   async countByEvent(eventId: string): Promise<number> {
     const [result] = await this.db.select({ value: count() }).from(TicketTable).where(eq(TicketTable.eventId, eventId));
     return Number(result?.value ?? 0);
+  }
+
+  // Tickets that are genuine but must not be admitted -- voided or refunded after the QR was
+  // signed. The signature froze at issuance and cannot express this, so the door has to be told
+  // separately. Ids only: the manifest never carries ticket rows.
+  async listBlockedIdsByEvent(eventId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: TicketTable.id })
+      .from(TicketTable)
+      .where(and(eq(TicketTable.eventId, eventId), ne(TicketTable.status, ETicketStatus.VALID)));
+    return rows.map((row) => row.id);
   }
 
   async update(id: string, data: Partial<NewTicket>): Promise<Ticket | null> {

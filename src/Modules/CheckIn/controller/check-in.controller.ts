@@ -14,6 +14,15 @@ class CheckInController {
     }
   }
 
+  public static async session(req: Request, res: Response, next: NextFunction) {
+    try {
+      const manifest = await CheckInService.getSessionManifest(req.params.eventId);
+      res.customSuccess(200, "Check-in session retrieved successfully", manifest);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async listByTicket(req: Request, res: Response, next: NextFunction) {
     try {
       const checkIns = await CheckInService.listByTicket(req.params.ticketId);
