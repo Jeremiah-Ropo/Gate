@@ -45,6 +45,17 @@ read they project as **`null`, meaning unknown — not `0`, which would read as 
 Publication is the one place this slice writes `events_inventory`: the row is created in the same
 transaction as the event, because Inventory's schema requires it to exist from the start.
 
+### Caching
+
+Published-event reads are cache-aside over Redis, invalidated by a BullMQ job published _after_ the
+event mutation commits (`src/Modules/Event/queue/`). Reads and writes degrade to a miss if Redis is
+unreachable, so browse falls back to Postgres rather than failing. The 15-minute TTL in
+`service/event-cache.ts` is a backstop for a dropped job, not the freshness mechanism.
+
+Only event-owned fields are cached. Inventory's figures are read live on every request, because
+they move on claims — and a claim is not an event mutation, so it produces no invalidation signal
+here.
+
 ## Getting started
 
 ```bash

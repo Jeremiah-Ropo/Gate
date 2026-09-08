@@ -1,9 +1,11 @@
 import { CustomError } from "core/global/errors";
 import eventInventoryRepository from "../repository/event-inventory.repository";
 import eventRepository from "../repository/event.repository";
+import eventCache from "./event-cache";
 import { IEventInventoryRepository } from "../entity/event-inventory.interface";
 import {
   IConsoleEventRow,
+  IEventCache,
   IEventProjectionService,
   IEventRepository,
   IPublishedEventProjection,
@@ -13,33 +15,53 @@ import { toConsoleRow, toDescriptor, toProjection } from "../entity/event.view";
 /**
  * The read model for events — the surface other slices consume.
  *
- * Event fields come from Postgres; capacity and the counters come from Inventory's repository and
- * are merged in per request. Caching is added on top of this in a follow-up, over the event fields
- * only: the counters move on claims, which happen in another slice and give this one no
- * invalidation signal.
+ * Event fields are served cache-aside; capacity and the counters come from Inventory's repository
+ * and are read live on every request. Only the event fields are cached, because the counters move
+ * on claims, which happen in another slice and give this one no invalidation signal. See
+ * event-cache.ts for the full reasoning.
  *
  * Collaborators arrive through the constructor rather than being imported at module scope, so the
- * read paths can be exercised against fakes with no Postgres or Inventory present. The wired
+ * read paths can be exercised against fakes with no Postgres, Redis or Inventory present. The wired
  * singleton is the default export, matching how every other service here is consumed.
  */
 export class EventProjectionService implements IEventProjectionService {
-  constructor(private readonly repository: IEventRepository, private readonly inventory: IEventInventoryRepository) {}
+  constructor(
+    private readonly repository: IEventRepository,
+    private readonly inventory: IEventInventoryRepository,
+    private readonly cache: IEventCache,
+  ) {}
 
   async listPublished(): Promise<IPublishedEventProjection[]> {
-    const events = await this.repository.listPublished();
-    const snapshots = await this.inventory.findByEventIds(events.map((event) => event.id));
-    return events.map((event) => toProjection(toDescriptor(event), snapshots.get(event.id) ?? null));
+    let descriptors = await this.cache.getPublishedList();
+    if (!descriptors) {
+      descriptors = (await this.repository.listPublished()).map(toDescriptor);
+      await this.cache.setPublishedList(descriptors);
+    }
+
+    const snapshots = await this.inventory.findByEventIds(descriptors.map((descriptor) => descriptor.id));
+    return descriptors.map((descriptor) => toProjection(descriptor, snapshots.get(descriptor.id) ?? null));
   }
 
   async getPublishedById(id: string): Promise<IPublishedEventProjection> {
-    const event = await this.repository.findPublishedById(id);
-    if (!event) {
-      throw new CustomError(404, "NotFound", "Event not found");
+    let descriptor = await this.cache.getDescriptor(id);
+    if (!descriptor) {
+      // Status is part of the query, so an unpublished event is indistinguishable from a missing
+      // one and a draft can never be cached as though it were public.
+      const event = await this.repository.findPublishedById(id);
+      if (!event) {
+        throw new CustomError(404, "NotFound", "Event not found");
+      }
+      descriptor = toDescriptor(event);
+      await this.cache.setDescriptor(descriptor);
     }
-    return toProjection(toDescriptor(event), await this.inventory.findByEventId(id));
+
+    return toProjection(descriptor, await this.inventory.findByEventId(id));
   }
 
-  /** Console rows include drafts, which never belong in the public catalogue. */
+  /**
+   * Console reads bypass the cache: an organiser needs current truth, and this includes drafts,
+   * which never belong in the published cache in the first place.
+   */
   async listForOrganiser(organiserId: string): Promise<IConsoleEventRow[]> {
     const events = await this.repository.listByOrganiser(organiserId);
     const snapshots = await this.inventory.findByEventIds(events.map((event) => event.id));
@@ -47,4 +69,4 @@ export class EventProjectionService implements IEventProjectionService {
   }
 }
 
-export default new EventProjectionService(eventRepository, eventInventoryRepository);
+export default new EventProjectionService(eventRepository, eventInventoryRepository, eventCache);
