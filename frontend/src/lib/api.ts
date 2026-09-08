@@ -1,7 +1,7 @@
 import type {
   AuthSession,
   CheckIn,
-  CheckInDevice,
+  DoorEvent,
   EventStatus,
   GateEvent,
   GateTicket,
@@ -174,29 +174,13 @@ export function uploadEventCoverImage(eventId: string, file: File): Promise<Gate
   });
 }
 
-// --- Check-in: staff/admin only. Devices are the physical/handheld scanners used at the
-// door; this app only registers and manages them (and looks up a ticket's scan history) —
-// the actual offline scan-and-sync loop runs on the device itself, authenticated separately
-// with its own device token, not a staff user's session. ---
+// --- Check-in: staff/admin only. A door is a signed-in staff member with an active
+// membership for the event -- there is no device to register. ---
 
-export function listCheckInDevices(eventId: string): Promise<CheckInDevice[]> {
-  return request<CheckInDevice[]>(`/check-in/devices/event/${eventId}`);
-}
-
-export function registerCheckInDevice(payload: {
-  eventId: string;
-  name: string;
-  location?: string;
-}): Promise<{ device: CheckInDevice; deviceSecret: string }> {
-  return request<{ device: CheckInDevice; deviceSecret: string }>("/check-in/devices", {
-    method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify(payload),
-  });
-}
-
-export function deactivateCheckInDevice(deviceId: string): Promise<CheckInDevice> {
-  return request<CheckInDevice>(`/check-in/devices/${deviceId}/deactivate`, { method: "PUT" });
+// The events this user is actually on the door for, which is what the door picker lists.
+// Being staff is not the same as being on this event's door.
+export function listMyDoorEvents(): Promise<DoorEvent[]> {
+  return request<DoorEvent[]>("/event-members/my-events");
 }
 
 export function getCheckInsForTicket(ticketId: string): Promise<CheckIn[]> {

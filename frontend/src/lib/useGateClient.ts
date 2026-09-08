@@ -4,7 +4,7 @@ import * as api from "@/lib/api";
 import type { EventPayload } from "@/lib/api";
 import * as previewApi from "@/lib/previewClient";
 import { useAuth } from "@/context/AuthContext";
-import type { CheckIn, CheckInDevice, EventStatus, GateEvent, GateTicket } from "@/types";
+import type { CheckIn, DoorEvent, EventStatus, GateEvent, GateTicket } from "@/types";
 
 export interface GateClient {
   listEvents(): Promise<GateEvent[]>;
@@ -15,13 +15,7 @@ export interface GateClient {
   voidTicket(ticketId: string): Promise<GateTicket>;
   createEvent(payload: EventPayload): Promise<GateEvent>;
   updateEvent(eventId: string, payload: Partial<EventPayload> & { status?: EventStatus }): Promise<GateEvent>;
-  listCheckInDevices(eventId: string): Promise<CheckInDevice[]>;
-  registerCheckInDevice(payload: {
-    eventId: string;
-    name: string;
-    location?: string;
-  }): Promise<{ device: CheckInDevice; deviceSecret: string }>;
-  deactivateCheckInDevice(deviceId: string): Promise<CheckInDevice>;
+  listMyDoorEvents(): Promise<DoorEvent[]>;
   getCheckInsForTicket(ticketId: string): Promise<CheckIn[]>;
 }
 
@@ -34,9 +28,7 @@ const realClient: GateClient = {
   voidTicket: api.voidTicket,
   createEvent: api.createEvent,
   updateEvent: api.updateEvent,
-  listCheckInDevices: api.listCheckInDevices,
-  registerCheckInDevice: api.registerCheckInDevice,
-  deactivateCheckInDevice: api.deactivateCheckInDevice,
+  listMyDoorEvents: api.listMyDoorEvents,
   getCheckInsForTicket: api.getCheckInsForTicket,
 };
 
@@ -59,9 +51,7 @@ export function useGateClient(): GateClient {
       voidTicket: previewApi.voidTicket,
       createEvent: (payload) => previewApi.createEvent(payload, ownerId),
       updateEvent: previewApi.updateEvent,
-      listCheckInDevices: previewApi.listCheckInDevices,
-      registerCheckInDevice: previewApi.registerCheckInDevice,
-      deactivateCheckInDevice: previewApi.deactivateCheckInDevice,
+      listMyDoorEvents: previewApi.listMyDoorEvents,
       getCheckInsForTicket: previewApi.getCheckInsForTicket,
     };
   }, [isPreview, user]);

@@ -19,6 +19,7 @@ export const queryKeys = {
   event: (id: string) => ["events", id] as const,
   myTickets: ["tickets", "mine"] as const,
   ticket: (id: string) => ["tickets", id] as const,
-  checkInDevices: (eventId: string) => ["check-in-devices", eventId] as const,
+  myDoorEvents: ["door", "my-events"] as const,
+  doorSession: (eventId: string) => ["door", "session", eventId] as const,
   checkInsForTicket: (ticketId: string) => ["check-ins", ticketId] as const,
 };
