@@ -60,6 +60,7 @@ export interface ITicketReservationRepository {
   findById(id: string): Promise<TicketReservationWithDetails | null>;
   findByIdForUser(id: string, userId: string): Promise<TicketReservationWithDetails | null>;
   findUnexpiredPendingByIdForUser(id: string, userId: string): Promise<TicketReservationWithDetails | null>;
+  expireOverduePending(limit: number, maxEvents: number): Promise<TicketReservation[]>;
   cancelPending(id: string, userId: string, cancelledAt: Date): Promise<TicketReservation | null>;
   markPaymentProcessing(
     id: string,
@@ -88,6 +89,7 @@ export interface ITicketReservationPaymentRepository {
 
 export interface ITicketReservationService {
   create(userId: string, payload: ICreateReservationDTO): Promise<IReservationResponseDTO>;
+  expireOverdueBatch(limit: number, maxEvents: number): Promise<number>;
   getById(userId: string, reservationId: string): Promise<IReservationResponseDTO>;
   cancel(userId: string, reservationId: string): Promise<IReservationResponseDTO>;
   pay(userId: string, reservationId: string, payload: IPayReservationDTO): Promise<IReservationResponseDTO>;

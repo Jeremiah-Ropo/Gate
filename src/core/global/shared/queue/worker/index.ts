@@ -1,8 +1,11 @@
 import { Worker } from "bullmq";
 
+import { startTicketReservationWorker } from "Modules/TicketReservation/worker/ticket-reservation.worker";
 import logger from "core/global/utils/logger";
-export const startAllWorkers = (): Worker[] => {
-  const workers: Worker[] = [];
+
+export const startAllWorkers = async (): Promise<Worker[]> => {
+  const ticketReservationWorker = await startTicketReservationWorker();
+  const workers = [ticketReservationWorker];
   logger.info({ workerCount: workers.length }, "All queue workers started");
   return workers;
 };

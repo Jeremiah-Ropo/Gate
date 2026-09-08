@@ -1,7 +1,7 @@
 import { generateKeyPairSync, randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { expect } from "chai";
-import { connectDB, getDb, users, events, tickets } from "../src/core/db/postgres";
+import { connectDB, getDb, users, events, tickets, ticketReservations } from "../src/core/db/postgres";
 import inventory from "../src/Modules/Event/repository/event-inventory.repository";
 import reservations from "../src/Modules/TicketReservation/service/ticket-reservation.service";
 import provider from "../src/Modules/TicketReservation/service/payment-provider";
@@ -94,5 +94,27 @@ suite("Reservation payment PostgreSQL flow", () => {
     expect(result).to.be.instanceOf(Error);
     expect(result.message).to.equal("Reservation not found");
     await reservations.cancel(userId, reservation.id);
+  });
+
+  it("expires a batch and releases the reserved inventory once", async () => {
+    const reservationRows = await Promise.all(
+      Array.from({ length: 3 }, () => reservations.create(userId, { eventId })),
+    );
+    const reservationIds = reservationRows.map(({ id }) => id);
+    await getDb()
+      .update(ticketReservations)
+      .set({ expiresAt: new Date(Date.now() - 1_000) })
+      .where(inArray(ticketReservations.id, reservationIds));
+
+    expect(await inventory.findByEventId(eventId)).to.include({ reserved: 3 });
+    expect(await reservations.expireOverdueBatch(100, 10)).to.equal(3);
+    expect(await inventory.findByEventId(eventId)).to.include({ reserved: 0 });
+    expect(await reservations.expireOverdueBatch(100, 10)).to.equal(0);
+
+    const expired = await getDb()
+      .select({ status: ticketReservations.status })
+      .from(ticketReservations)
+      .where(inArray(ticketReservations.id, reservationIds));
+    expect(expired.every(({ status }) => status === "expired")).to.equal(true);
   });
 });

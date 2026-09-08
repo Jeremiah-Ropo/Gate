@@ -9,7 +9,7 @@ import logger from "core/global/utils/logger";
 export const startWorker = async (): Promise<void> => {
   await connectDB();
   await queueManager.connect();
-  const workers = startAllWorkers();
+  const workers = await startAllWorkers();
   let shuttingDown = false;
 
   const shutdown = async (signal: NodeJS.Signals): Promise<void> => {

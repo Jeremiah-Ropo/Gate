@@ -64,13 +64,21 @@ class EventInventoryRepository implements IEventInventoryRepository {
   }
 
   async releaseReservedTicket(eventId: string): Promise<EventInventory | null> {
+    return this.releaseReservedTickets(eventId, 1);
+  }
+
+  async releaseReservedTickets(eventId: string, quantity: number): Promise<EventInventory | null> {
+    if (quantity < 1 || !Number.isInteger(quantity)) {
+      throw new Error("Inventory release quantity must be a positive integer");
+    }
+
     const [inventory] = await this.db
       .update(EventInventoryTable)
       .set({
-        reserved: sql`${EventInventoryTable.reserved} - 1`,
+        reserved: sql`${EventInventoryTable.reserved} - ${quantity}`,
         updatedAt: new Date(),
       })
-      .where(and(eq(EventInventoryTable.eventId, eventId), gte(EventInventoryTable.reserved, 1)))
+      .where(and(eq(EventInventoryTable.eventId, eventId), gte(EventInventoryTable.reserved, quantity)))
       .returning();
     return inventory ?? null;
   }

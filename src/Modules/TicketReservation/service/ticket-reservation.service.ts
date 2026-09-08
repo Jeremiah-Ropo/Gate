@@ -80,6 +80,34 @@ class TicketReservationService implements ITicketReservationService {
     });
   }
 
+  async expireOverdueBatch(limit: number, maxEvents: number): Promise<number> {
+    if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(maxEvents) || maxEvents < 1) {
+      throw new Error("Reservation expiry limits must be positive integers");
+    }
+
+    return withTransaction(async (tx) => {
+      const reservations = this.reservations.withTx(tx);
+      const inventories = this.inventories.withTx(tx);
+      const expired = await reservations.expireOverduePending(limit, maxEvents);
+
+      if (expired.length === 0) return 0;
+      const releases = new Map<string, number>();
+
+      for (const reservation of expired) {
+        releases.set(reservation.eventId, (releases.get(reservation.eventId) ?? 0) + 1);
+      }
+
+      for (const [eventId, quantity] of releases) {
+        const inventory = await inventories.releaseReservedTickets(eventId, quantity);
+        if (!inventory) {
+          throw new CustomError(409, "Conflict", "Reservation inventory is inconsistent");
+        }
+      }
+
+      return expired.length;
+    });
+  }
+
   async getById(userId: string, reservationId: string): Promise<IReservationResponseDTO> {
     const current = await this.reservations.findByIdForUser(reservationId, userId);
     if (!current) {
