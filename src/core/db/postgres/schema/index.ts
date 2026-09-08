@@ -15,6 +15,7 @@ export * from "./event-inventory.schema";
 export * from "./event-member.schema";
 export * from "./ticket.schema";
 export * from "./ticket-reservation.schema";
+export * from "./payment-provider.schema";
 export * from "./check-in.schema";
 
 export const usersRelations = relations(users, ({ many }) => ({

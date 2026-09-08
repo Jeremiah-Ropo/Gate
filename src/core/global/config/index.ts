@@ -30,6 +30,8 @@ export const RESERVATION_EXPIRY_SWEEP_INTERVAL_MS = Number(process.env.RESERVATI
 export const RESERVATION_EXPIRY_BATCH_SIZE = Number(process.env.RESERVATION_EXPIRY_BATCH_SIZE) || 100;
 export const RESERVATION_EXPIRY_MAX_EVENTS = Number(process.env.RESERVATION_EXPIRY_MAX_EVENTS) || 10;
 export const PAYMENT_PROCESSING_TTL_SECONDS = Number(process.env.PAYMENT_PROCESSING_TTL_SECONDS) || 60;
+export const PAYMENT_RECOVERY_SWEEP_INTERVAL_MS = Number(process.env.PAYMENT_RECOVERY_SWEEP_INTERVAL_MS) || 5_000;
+export const PAYMENT_RECOVERY_CLAIM_LEASE_SECONDS = Number(process.env.PAYMENT_RECOVERY_CLAIM_LEASE_SECONDS) || 30;
 export const PAYMENT_PROVIDER_TIMEOUT_MS = Number(process.env.PAYMENT_PROVIDER_TIMEOUT_MS) || 5_000;
 
 // Ed25519 key pair used to sign ticket QR payloads. Base64-encoded PEM; generate with

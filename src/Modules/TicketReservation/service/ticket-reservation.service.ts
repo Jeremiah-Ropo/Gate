@@ -3,6 +3,7 @@ import { Service } from "typedi";
 
 import { withTransaction } from "core/db/postgres";
 import {
+  PAYMENT_RECOVERY_CLAIM_LEASE_SECONDS,
   PAYMENT_PROCESSING_TTL_SECONDS,
   PAYMENT_PROVIDER_TIMEOUT_MS,
   RESERVATION_TTL_SECONDS,
@@ -19,6 +20,7 @@ import {
   IPaymentProvider,
   IReservationResponseDTO,
   ITicketReservationService,
+  PaymentRecoveryStatus,
   PaymentProviderResult,
   PaymentProviderStatus,
 } from "../entity/ticket-reservation.interface";
@@ -106,6 +108,35 @@ class TicketReservationService implements ITicketReservationService {
 
       return expired.length;
     });
+  }
+
+  async recoverOneStalePayment(): Promise<PaymentRecoveryStatus> {
+    const claimId = randomUUID();
+    const claimedUntil = new Date(Date.now() + PAYMENT_RECOVERY_CLAIM_LEASE_SECONDS * 1000);
+    const claimed = await withTransaction((tx) =>
+      this.paymentAttempts.withTx(tx).claimStaleProcessing(claimId, claimedUntil),
+    );
+
+    if (!claimed) return "none";
+
+    const status = await this.paymentProvider.getStatus(claimed.reference);
+
+    if (status === null) {
+      await this.restoreAfterPaymentFailure(claimed.userId, claimed.reservationId, claimed.id);
+      return "failed";
+    }
+
+    if (status === "succeeded") {
+      await this.claimPaidReservation(claimed.userId, claimed.reservationId, claimed.id);
+      return "succeeded";
+    }
+
+    if (status === "failed") {
+      await this.restoreAfterPaymentFailure(claimed.userId, claimed.reservationId, claimed.id);
+      return "failed";
+    }
+
+    return status;
   }
 
   async getById(userId: string, reservationId: string): Promise<IReservationResponseDTO> {
@@ -256,6 +287,11 @@ class TicketReservationService implements ITicketReservationService {
       return this.claimPaidReservation(userId, reservationId, paymentAttemptId);
     }
 
+    if (status === null) {
+      await this.restoreAfterPaymentFailure(userId, reservationId, paymentAttemptId);
+      throw new CustomError(402, "BadRequest", "The payment was not found by the provider");
+    }
+
     if (status === "failed") {
       await this.restoreAfterPaymentFailure(userId, reservationId, paymentAttemptId);
       throw new CustomError(402, "BadRequest", "The payment was declined");
@@ -328,6 +364,10 @@ class TicketReservationService implements ITicketReservationService {
 
       const payment = await paymentAttempts.markFailed(paymentAttemptId, now);
       if (!payment) {
+        const current = await reservations.findByIdForUser(reservationId, userId);
+        if (current?.reservation.status === "pending") {
+          return;
+        }
         throw new CustomError(409, "Conflict", "Payment state changed; please refresh and try again");
       }
 

@@ -19,7 +19,15 @@ export interface IPayReservationDTO {
 }
 
 export type PaymentProviderResult = { status: "succeeded" } | { status: "failed"; reason: string };
-export type PaymentProviderStatus = "processing" | "succeeded" | "failed" | "unknown";
+export type PaymentProviderStatus = "processing" | "succeeded" | "failed" | null;
+export type PaymentRecoveryStatus = "none" | "processing" | "succeeded" | "failed";
+
+export interface StalePaymentAttempt {
+  id: string;
+  reservationId: string;
+  userId: string;
+  reference: string;
+}
 
 export interface IPaymentProvider {
   pay(reference: string, details: IPayReservationDTO, timeoutMs: number): Promise<PaymentProviderResult>;
@@ -81,6 +89,7 @@ export interface ITicketReservationRepository {
 export interface ITicketReservationPaymentRepository {
   withTx(tx: DbTransaction): ITicketReservationPaymentRepository;
   createProcessing(data: NewReservationPaymentAttempt): Promise<ReservationPaymentAttempt>;
+  claimStaleProcessing(claimId: string, claimedUntil: Date): Promise<StalePaymentAttempt | null>;
   findById(id: string): Promise<ReservationPaymentAttempt | null>;
   findByReference(reference: string): Promise<ReservationPaymentAttempt | null>;
   markSucceeded(id: string, completedAt: Date): Promise<ReservationPaymentAttempt | null>;
@@ -90,6 +99,7 @@ export interface ITicketReservationPaymentRepository {
 export interface ITicketReservationService {
   create(userId: string, payload: ICreateReservationDTO): Promise<IReservationResponseDTO>;
   expireOverdueBatch(limit: number, maxEvents: number): Promise<number>;
+  recoverOneStalePayment(): Promise<PaymentRecoveryStatus>;
   getById(userId: string, reservationId: string): Promise<IReservationResponseDTO>;
   cancel(userId: string, reservationId: string): Promise<IReservationResponseDTO>;
   pay(userId: string, reservationId: string, payload: IPayReservationDTO): Promise<IReservationResponseDTO>;
