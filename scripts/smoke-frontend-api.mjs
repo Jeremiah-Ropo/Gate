@@ -24,6 +24,8 @@ async function call(path, method = "GET", data, expected = 200) {
   return body.data;
 }
 try {
+  // A fresh local-only credential is generated for every run; nothing secret is stored in Git.
+  const password = ["Qa!", randomUUID(), "aZ9"].join("");
   const session = await call(
     "/auth/register",
     "POST",
@@ -31,7 +33,7 @@ try {
       firstName: "Smoke",
       lastName: "Tester",
       email: `gate-${randomUUID()}@example.test`,
-      password: `Qa!${randomUUID()}aZ9`,
+      password,
     },
     201,
   );
