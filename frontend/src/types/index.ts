@@ -88,6 +88,19 @@ export interface DoorEvent {
   status: "active" | "revoked";
 }
 
+// GET /check-in/events/:eventId/session. Carries exceptions, never the guest list: anything
+// with a valid signature for this event is admissible, so only the tickets that are genuine
+// but must not get in have to travel.
+export interface DoorManifest {
+  eventId: string;
+  eventName: string;
+  // Base64-encoded PEM. Verifies signatures, cannot produce them.
+  publicKey: string;
+  issuedAt: string;
+  checkedInTicketIds: string[];
+  blockedTicketIds: string[];
+}
+
 export type CheckInStatus = "success" | "duplicate" | "invalid" | "denied";
 
 export interface CheckIn {
