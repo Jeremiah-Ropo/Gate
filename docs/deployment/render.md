@@ -20,7 +20,8 @@ browser/client -> gate-api -> gate-db
 
 ## Before the first deployment
 
-1. Merge the stack through the CI quality-gate PR and confirm its required check is green.
+1. Review and merge #30 (frontend integration), then #11 (CI), then #23 (this Blueprint).
+   Retarget each child to main after its parent lands and confirm the checks are green.
 2. In Render, create a new Blueprint from this repository and review the paid resource estimates before applying it.
 3. Enter `CLOUD_NAME`, `API_KEY`, and `API_SECRET` when Render prompts. Do not put their values in Git.
    Set `gate-web`'s `VITE_API_URL` to the API's actual public HTTPS URL plus `/v1`.
@@ -44,9 +45,12 @@ a release, preventing the API and worker from racing the same migration.
 
 ## Current release blockers
 
-- CI #11 still reports existing Event/Ticket service-to-schema mismatches; do not bypass it.
-- Land and integrate Events #15 and caching #16, including public frontend API routes.
-- Signing #28 must land and be used by purchase and offline scanning.
+- Events #15, caching #16 and signing #28 are merged. #30 wires public projections,
+  removes obsolete direct issuance and adds reservation checkout; local TypeScript,
+  builds and API/browser smoke tests pass.
+- The #30 → #11 → #23 review stack must land with green checks. Do not bypass a
+  failing CI or security check.
+- Ayo must wire the signing helper and attendee-name contract into purchase.
 - Reservation #25 is merged as a foundation. Expiry and payment-recovery workers
   remain follow-ups; a healthy worker process alone does not prove those jobs exist.
 - Exercise the real browser journey: register, reserve, pay, show signed QR, check in,
@@ -56,10 +60,13 @@ a release, preventing the API and worker from racing the same migration.
 
 1. The API deployment passes `GET /health/live` and `GET /health/ready`.
 2. The worker log contains `Worker process started` with the expected worker count.
+   The currently registered worker is cache invalidation, not reservation expiry.
 3. A registration and login request succeeds without a server error.
 4. One queued expiry job is processed once and its database result is visible.
 5. API logs for the request include a request ID and do not include credentials.
 6. Restart the worker and confirm it drains on `SIGTERM` without losing the queued job.
+7. Confirm published event edits invalidate cached descriptors while availability
+   is read live. Browse must not show sample data when the API fails.
 
 ## Deployment and rollback
 
