@@ -11,6 +11,8 @@ import { CustomError } from "core/global/errors";
 import eventRepository from "Modules/Event/repository/event.repository";
 import eventInventoryRepository from "Modules/Event/repository/event-inventory.repository";
 import ticketRepository from "Modules/Ticket/repository/ticket.repository";
+import userRepository from "Modules/User/repository/user.repository";
+import { signTicket } from "core/global/utils/ticket-signature";
 import {
   ICreateReservationDTO,
   IPayReservationDTO,
@@ -34,6 +36,7 @@ class TicketReservationService implements ITicketReservationService {
   private readonly inventories = eventInventoryRepository;
   private readonly events = eventRepository;
   private readonly tickets = ticketRepository;
+  private readonly users = userRepository;
   private readonly paymentProvider: IPaymentProvider = paymentProvider;
 
   public static getInstance(): ITicketReservationService {
@@ -267,11 +270,18 @@ class TicketReservationService implements ITicketReservationService {
         throw new CustomError(409, "Conflict", "Reservation inventory is unavailable; please refresh and try again");
       }
 
+      const owner = await this.users.withTx(tx).findById(userId);
+      if (!owner) {
+        throw new CustomError(404, "NotFound", "Ticket owner not found");
+      }
+
+      const ticketId = randomUUID();
       const ticket = await tickets.create({
+        id: ticketId,
         eventId: reservation.eventId,
         reservationId: reservation.id,
         ownerId: userId,
-        qrPayload: randomUUID(),
+        qrPayload: signTicket(ticketId, reservation.eventId, `${owner.firstName} ${owner.lastName}`),
       });
 
       return this.toResponse(reservation, payment, ticket.id);

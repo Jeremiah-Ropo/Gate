@@ -1,9 +1,12 @@
-import { randomUUID } from "crypto";
+import { generateKeyPairSync, randomUUID } from "crypto";
+import { eq } from "drizzle-orm";
 import { expect } from "chai";
-import { connectDB, getDb, users, events } from "../src/core/db/postgres";
+import { connectDB, getDb, users, events, tickets } from "../src/core/db/postgres";
 import inventory from "../src/Modules/Event/repository/event-inventory.repository";
 import reservations from "../src/Modules/TicketReservation/service/ticket-reservation.service";
 import provider from "../src/Modules/TicketReservation/service/payment-provider";
+import { TICKET_SIGNING } from "../src/core/global/config";
+import { resetTicketKeyCacheForTests, verifyTicket } from "../src/core/global/utils/ticket-signature";
 
 // Opt in only with a disposable, migrated database.
 const suite = process.env.GATE_REVIEW_DB === "true" ? describe : describe.skip;
@@ -18,6 +21,14 @@ suite("Reservation payment PostgreSQL flow", () => {
     cvv: "123",
   };
   before(async () => {
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519", {
+      publicKeyEncoding: { type: "spki", format: "pem" },
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    });
+    TICKET_SIGNING.PRIVATE_KEY = Buffer.from(privateKey, "utf8").toString("base64");
+    TICKET_SIGNING.PUBLIC_KEY = Buffer.from(publicKey, "utf8").toString("base64");
+    resetTicketKeyCacheForTests();
+
     connectDB();
     const [user] = await getDb()
       .insert(users)
@@ -47,7 +58,16 @@ suite("Reservation payment PostgreSQL flow", () => {
     const reservation = await reservations.create(userId, { eventId });
     const paid = await reservations.pay(userId, reservation.id, card);
     expect(paid.status).to.equal("paid");
-    expect(paid.ticketId).to.be.a("string");
+    const ticketId = paid.ticketId;
+    if (!ticketId) throw new Error("Expected payment to issue a ticket");
+    const [ticket] = await getDb().select().from(tickets).where(eq(tickets.id, ticketId)).limit(1);
+    if (!ticket) throw new Error("Expected issued ticket to be persisted");
+    expect(verifyTicket(ticket.qrPayload)).to.include({
+      ok: true,
+      ticketId,
+      eventId,
+      holderName: "Review Fixture",
+    });
     const again = await reservations.pay(userId, reservation.id, card);
     expect(again.ticketId).to.equal(paid.ticketId);
     expect(await inventory.findByEventId(eventId)).to.include({ sold: 1, reserved: 0 });
