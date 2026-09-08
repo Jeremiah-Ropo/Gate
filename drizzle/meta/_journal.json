@@ -50,6 +50,13 @@
       "when": 1788875581441,
       "tag": "0006_lyrical_justin_hammer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788900613847,
+      "tag": "0007_solid_marrow",
+      "breakpoints": true
     }
   ]
 }

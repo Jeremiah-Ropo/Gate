@@ -55,6 +55,7 @@ suite("Payment recovery", () => {
         id: paymentId,
         reservationId: reservation.id,
         reference,
+        holderName: "Recovery Fixture",
         status: "processing",
         createdAt: new Date(0),
         updatedAt: new Date(0),

@@ -13,7 +13,7 @@ import eventRepository from "Modules/Event/repository/event.repository";
 import eventInventoryRepository from "Modules/Event/repository/event-inventory.repository";
 import ticketRepository from "Modules/Ticket/repository/ticket.repository";
 import userRepository from "Modules/User/repository/user.repository";
-import { signTicket } from "core/global/utils/ticket-signature";
+import { signTicket, validateHolderName } from "core/global/utils/ticket-signature";
 import {
   ICreateReservationDTO,
   IPayReservationDTO,
@@ -203,7 +203,13 @@ class TicketReservationService implements ITicketReservationService {
       throw new CustomError(409, "Conflict", "Reservation has expired; please refresh and try again");
     }
 
-    const payment = await this.startPayment(userId, reservationId);
+    const owner = await this.users.findById(userId);
+    if (!owner) {
+      throw new CustomError(404, "NotFound", "Ticket owner not found");
+    }
+    const holderName = validateHolderName(`${owner.firstName} ${owner.lastName}`);
+
+    const payment = await this.startPayment(userId, reservationId, holderName);
     if (!payment) {
       const latest = await this.getById(userId, reservationId);
       if (latest.status === "payment_processing" || latest.status === "paid") {
@@ -226,7 +232,7 @@ class TicketReservationService implements ITicketReservationService {
     return this.handlePaymentResult(userId, reservationId, payment.id, result);
   }
 
-  private async startPayment(userId: string, reservationId: string) {
+  private async startPayment(userId: string, reservationId: string, holderName: string) {
     const paymentAttemptId = randomUUID();
     const reference = `reservation-payment-${randomUUID()}`;
     const processingExpiresAt = new Date(Date.now() + PAYMENT_PROCESSING_TTL_SECONDS * 1000);
@@ -250,6 +256,7 @@ class TicketReservationService implements ITicketReservationService {
         id: paymentAttemptId,
         reservationId,
         reference,
+        holderName,
       });
 
       return { id: payment.id, reference: payment.reference };
@@ -334,18 +341,13 @@ class TicketReservationService implements ITicketReservationService {
         throw new CustomError(409, "Conflict", "Reservation inventory is unavailable; please refresh and try again");
       }
 
-      const owner = await this.users.withTx(tx).findById(userId);
-      if (!owner) {
-        throw new CustomError(404, "NotFound", "Ticket owner not found");
-      }
-
       const ticketId = randomUUID();
       const ticket = await tickets.create({
         id: ticketId,
         eventId: reservation.eventId,
         reservationId: reservation.id,
         ownerId: userId,
-        qrPayload: signTicket(ticketId, reservation.eventId, `${owner.firstName} ${owner.lastName}`),
+        qrPayload: signTicket(ticketId, reservation.eventId, payment.holderName),
       });
 
       return this.toResponse(reservation, payment, ticket.id);
