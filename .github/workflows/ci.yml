@@ -58,6 +58,8 @@ jobs:
           done
           if [ "$ready" -ne 1 ]; then cat /tmp/gate-ci-api.log; exit 1; fi
           node scripts/smoke-frontend-api.mjs
+      - name: Smoke-test worker cache invalidation and shutdown
+        run: node scripts/smoke-worker.mjs
 
   frontend:
     runs-on: ubuntu-latest

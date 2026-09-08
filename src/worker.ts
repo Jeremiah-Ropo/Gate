@@ -2,12 +2,14 @@ import "dotenv/config";
 import "reflect-metadata";
 
 import { connectDB, disconnectDB } from "core/db/postgres";
+import RedisManager from "core/db/redis";
 import queueManager from "core/global/shared/queue/queue-manager";
 import { closeAllWorkers, startAllWorkers } from "core/global/shared/queue/worker";
 import logger from "core/global/utils/logger";
 
 export const startWorker = async (): Promise<void> => {
   await connectDB();
+  await RedisManager.connect();
   await queueManager.connect();
   const workers = await startAllWorkers();
   let shuttingDown = false;
@@ -18,7 +20,7 @@ export const startWorker = async (): Promise<void> => {
     logger.info({ signal }, "Worker process shutting down");
     try {
       await closeAllWorkers(workers);
-      await Promise.all([queueManager.close(), disconnectDB()]);
+      await Promise.all([queueManager.close(), RedisManager.disconnect(), disconnectDB()]);
       logger.info("Worker process stopped");
       process.exit(0);
     } catch (error) {
