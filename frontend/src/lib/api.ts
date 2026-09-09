@@ -1,14 +1,14 @@
 import type {
   AuthSession,
   CheckIn,
-  CheckInDevice,
+  TicketReservation,
   EventStatus,
   GateEvent,
   GateTicket,
   GateUser,
 } from "@/types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/v1";
+const API_URL = import.meta.env?.VITE_API_URL ?? "http://localhost:8000/v1";
 
 export class ApiError extends Error {
   constructor(
@@ -27,6 +27,21 @@ let authToken: string | null = null;
 
 export function setAuthToken(token: string | null) {
   authToken = token;
+}
+
+interface EventProjection extends Omit<GateEvent, "inventory" | "status"> {
+  status?: EventStatus;
+  capacity: number | null;
+  reserved: number | null;
+  sold: number | null;
+  remaining: number | null;
+}
+
+function eventView(row: EventProjection): GateEvent {
+  return { ...row, status: row.status ?? "published", inventory: row.capacity === null ? null : {
+    eventId: row.id, capacity: row.capacity, reserved: row.reserved!, sold: row.sold!, remaining: row.remaining!,
+    createdAt: row.createdAt, updatedAt: row.updatedAt,
+  } };
 }
 
 interface SuccessEnvelope<T> {
@@ -70,11 +85,11 @@ export function errorMessage(err: unknown): string {
 // --- Public browse: no auth required ---
 
 export function listEvents(): Promise<GateEvent[]> {
-  return request<GateEvent[]>("/event");
+  return request<EventProjection[]>("/events").then(rows => rows.map(eventView));
 }
 
 export function getEvent(eventId: string): Promise<GateEvent> {
-  return request<GateEvent>(`/event/${eventId}`);
+  return request<EventProjection>(`/events/${eventId}`).then(eventView);
 }
 
 // --- Auth: required to move past browsing into claiming a ticket. Every self-registered
@@ -109,16 +124,24 @@ export function getMe(): Promise<GateUser> {
   return request<GateUser>("/user/me");
 }
 
-// --- Claiming a ticket: requires an authenticated attendee session. The ticket's owner is
-// the signed-in user (ownerId, from the JWT) — there's no ownerName/ownerEmail on the
-// tickets table, so nothing else needs to be collected at claim time. ---
-
-export function claimTicket(eventId: string): Promise<GateTicket> {
-  return request<GateTicket>("/ticket", {
-    method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify({ eventId }),
-  });
+// Reservations are the only issuance path. The server owns payment state.
+export function createReservation(eventId: string, idempotencyKey: string): Promise<TicketReservation> {
+  return request("/reservations", { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ eventId }) });
+}
+export function getReservation(id: string): Promise<TicketReservation> { return request(`/reservations/${id}`); }
+export function cancelReservation(id: string): Promise<TicketReservation> { return request(`/reservations/${id}`, { method: "DELETE" }); }
+export type DemoPaymentOutcome = "success" | "declined" | "slow";
+export function payReservation(id: string, outcome: DemoPaymentOutcome): Promise<TicketReservation> {
+  const cards = { success: "4242424242424242", declined: "4000000000000002", slow: "4000000000003220" };
+  return request(`/reservations/${id}/pay`, { method: "POST", body: JSON.stringify({ cardNumber: cards[outcome], cardholderName: "Demo Only", expiryMonth: 12, expiryYear: 2099, cvv: "123" }) });
+}
+export function listManagedEvents(): Promise<GateEvent[]> {
+  return request<EventProjection[]>("/console/events").then(rows => rows.map(eventView));
+}
+export async function getManagedEvent(id: string): Promise<GateEvent> {
+  const event = (await listManagedEvents()).find(row => row.id === id);
+  if (!event) throw new ApiError("Event not found or not managed by you", 404);
+  return event;
 }
 
 export function listMyTickets(): Promise<GateTicket[]> {
@@ -148,7 +171,7 @@ export interface EventPayload {
 }
 
 export function createEvent(payload: EventPayload): Promise<GateEvent> {
-  return request<GateEvent>("/event", {
+  return request<GateEvent>("/event/publish", {
     method: "POST",
     headers: { "Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify(payload),
@@ -174,31 +197,7 @@ export function uploadEventCoverImage(eventId: string, file: File): Promise<Gate
   });
 }
 
-// --- Check-in: staff/admin only. Devices are the physical/handheld scanners used at the
-// door; this app only registers and manages them (and looks up a ticket's scan history) —
-// the actual offline scan-and-sync loop runs on the device itself, authenticated separately
-// with its own device token, not a staff user's session. ---
-
-export function listCheckInDevices(eventId: string): Promise<CheckInDevice[]> {
-  return request<CheckInDevice[]>(`/check-in/devices/event/${eventId}`);
-}
-
-export function registerCheckInDevice(payload: {
-  eventId: string;
-  name: string;
-  location?: string;
-}): Promise<{ device: CheckInDevice; deviceSecret: string }> {
-  return request<{ device: CheckInDevice; deviceSecret: string }>("/check-in/devices", {
-    method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify(payload),
-  });
-}
-
-export function deactivateCheckInDevice(deviceId: string): Promise<CheckInDevice> {
-  return request<CheckInDevice>(`/check-in/devices/${deviceId}/deactivate`, { method: "PUT" });
-}
-
+// Check-in audit uses the staff account, not a device secret.
 export function getCheckInsForTicket(ticketId: string): Promise<CheckIn[]> {
   return request<CheckIn[]>(`/check-in/ticket/${ticketId}`);
 }

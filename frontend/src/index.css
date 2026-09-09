@@ -1,23 +1,136 @@
 @import "tailwindcss";
-
 @theme {
-  --font-sans:
-    "Geist Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono:
-    "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
-  --font-serif: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --font-serif: "Fraunces Variable", Georgia, serif;
+  --color-neutral-50: #faf9f6;
+  --color-neutral-900: #102e28;
+  --color-neutral-700: #235747;
 }
-
 body {
   color-scheme: light;
   font-family: var(--font-sans);
+  color: #172520;
+  background: #faf9f6;
 }
-
-/* Headings use the display serif everywhere by default (font-serif is still
-   available as a utility for one-off use, e.g. the Navbar wordmark). */
 h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
+  letter-spacing: -0.045em;
+}
+h1 {
+  text-wrap: balance;
+}
+button:not(:disabled),
+select {
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 3px solid #39795e;
+  outline-offset: 4px;
+}
+input,
+textarea,
+select {
+  background: white;
+}
+button,
+a {
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.page-shell {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: 48px 24px 80px;
+}
+.eyebrow {
+  color: #48715e;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.display-title {
+  font-size: clamp(44px, 6.5vw, 80px);
+  line-height: 1.02;
+  font-weight: 650;
+  letter-spacing: -0.065em;
+}
+.primary-action {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 46px;
+  border-radius: 7px;
+  padding: 12px 22px;
+  background: #125541;
+  color: white;
+  font-size: 14px;
+  font-weight: 550;
+}
+.primary-action:hover {
+  background: #0b3c2e;
+}
+.primary-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.editorial-cover {
+  background: #e4ebe3;
+  aspect-ratio: 16 / 7;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.editorial-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.auth-panel {
+  max-width: 470px;
+  margin: 64px auto;
+  padding: 40px;
+  background: white;
+  border: 1px solid #e1e5dd;
+  border-radius: 12px;
+}
+.auth-panel h1 {
+  font-size: 32px;
+}
+.auth-panel input {
+  min-height: 46px;
+}
+.ticket-card {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid #dce3d9;
+  padding: 28px;
+}
+.booking-panel {
+  padding: 28px;
+  border: 1px solid #dce3d9;
+  border-radius: 12px;
+  background: white;
+}
+@media (max-width: 640px) {
+  .page-shell {
+    padding: 32px 20px 48px;
+  }
+  .auth-panel {
+    margin: 24px 16px;
+    padding: 28px 22px;
+  }
+  .editorial-cover {
+    aspect-ratio: 4 / 3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }

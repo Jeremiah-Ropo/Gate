@@ -12,13 +12,16 @@ export function Navbar() {
   };
 
   return (
-    <header className="border-b border-neutral-200 bg-white">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-        <Link to="/" className="font-serif text-xl font-semibold tracking-tight text-neutral-900">
+    <header className="border-b border-neutral-200 bg-neutral-50">
+      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-6 py-6">
+        <Link to="/" className="text-3xl font-bold tracking-tighter text-neutral-900">
           Gate
         </Link>
 
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm">
+          <Link to="/" className="font-medium text-neutral-700">
+            Explore
+          </Link>
           {isAuthenticated ? (
             <>
               {user?.role === "attendee" && (
@@ -41,7 +44,7 @@ export function Navbar() {
                   </Link>
                 </>
               )}
-              <span className="text-neutral-600">Hi, {user?.firstName}</span>
+              <span className="hidden text-neutral-600 sm:inline">Hi, {user?.firstName}</span>
               <button
                 type="button"
                 onClick={handleLogout}
