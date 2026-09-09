@@ -24,7 +24,7 @@ export interface ScanConflict {
  * partial unique index on check_ins does that, and the loser comes back as a duplicate.
  * Scans are deleted only after a 2xx, so a dropped connection costs a retry, not a scan.
  */
-export function useScanSync(eventId: string) {
+export function useScanSync(eventId: string, onAdmitted: (ticketIds: string[]) => void) {
   const [pending, setPending] = useState(0);
   const [conflicts, setConflicts] = useState<ScanConflict[]>([]);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -43,10 +43,15 @@ export function useScanSync(eventId: string) {
     try {
       for (let i = 0; i < queued.length; i += MAX_BATCH) {
         const batch = queued.slice(i, i + MAX_BATCH);
-        const results = await api.syncScans(
+        const { results, allCheckedInIds } = await api.syncScans(
           eventId,
           batch.map(({ clientScanId, ticketCode, scannedAt }) => ({ clientScanId, ticketCode, scannedAt })),
         );
+
+        // Merged by the caller, never used to replace. A ticket this device admitted but has
+        // not synced yet is a person already standing inside the venue; dropping it because
+        // the server has not heard about them would let the same ticket go green again.
+        onAdmitted(allCheckedInIds);
 
         const byId = new Map(batch.map((scan) => [scan.clientScanId, scan]));
         const disagreements: ScanConflict[] = [];
@@ -69,7 +74,7 @@ export function useScanSync(eventId: string) {
       setIsSyncing(false);
       await refreshCount();
     }
-  }, [eventId, refreshCount]);
+  }, [eventId, refreshCount, onAdmitted]);
 
   useEffect(() => {
     const goOnline = () => {

@@ -117,6 +117,13 @@ export interface ScanResult {
   ticketId: string | null;
 }
 
+// What the server sends back after a batch. allCheckedInIds is every ticket admitted for
+// this event so far, which is how one door hears about admissions made at another.
+export interface SyncResponse {
+  results: ScanResult[];
+  allCheckedInIds: string[];
+}
+
 export interface CheckIn {
   id: string;
   ticketId: string | null;
