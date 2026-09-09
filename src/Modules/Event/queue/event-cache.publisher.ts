@@ -31,7 +31,7 @@ export default class EventCachePublisher {
       //
       // Hyphens and an epoch stamp, not colons and an ISO timestamp: BullMQ delimits its own Redis
       // keys with ':' and rejects a custom id containing one, so the previous format meant no
-      // invalidation was ever queued at all. Covered by a test below the fold in event-cache.test.
+      // invalidation was ever queued at all. Covered by the event projection tests.
       jobId: `${EVENT_CACHE_INVALIDATE}-${eventId}-${Date.parse(job.committedAt)}`,
       attempts: 5,
       backoff: { type: "exponential", delay: 1000 },

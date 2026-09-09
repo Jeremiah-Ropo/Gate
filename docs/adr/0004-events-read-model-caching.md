@@ -34,8 +34,10 @@ merge them in at read time.
 
 Concretely: `events:published:list` and `events:published:<id>` hold an event descriptor holding
 nothing from `events_inventory`, invalidated by the job published after an event mutation commits,
-with a 15-minute TTL as a backstop for a lost job. Capacity and the counters are read through
-`IEventInventoryReader` on each call and project as `null` when Inventory cannot be read — never as
+with a 15-minute TTL as a backstop for a lost job. `EventProjectionService` uses the shared
+`core/db/redis` `RedisManager` for `get`, `set` and `delete`; it does not create another Redis
+client or Event-specific database wrapper. Capacity and the counters are read through
+`IEventInventoryRepository` on each call and project as `null` when Inventory cannot be read — never as
 `0`, which would read as sold out.
 
 Capacity is included in the live read rather than the cache even though it never changes after

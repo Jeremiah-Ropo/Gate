@@ -36,7 +36,7 @@ export class EventService implements IEventService {
    * Queues cache invalidation for a mutation that has already committed. Deliberately not awaited
    * into the request's failure path: the write is durable by this point, so refusing the response
    * because Redis is unreachable would be the wrong trade. A lost job leaves the cache stale only
-   * until the backstop TTL in event-cache.ts.
+   * until the backstop TTL in EventProjectionService.
    */
   private announceCommittedMutation(eventId: string, reason: EventMutationReason): void {
     new EventCachePublisher()

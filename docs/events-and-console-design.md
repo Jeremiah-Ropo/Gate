@@ -57,7 +57,8 @@ would read as sold out**.
 
 ## Read path
 
-Reads are cache-aside over Redis, but only over the fields this slice mutates:
+Reads are cache-aside through the shared `core/db/redis` `RedisManager`, coordinated by
+`EventProjectionService`, but only over the fields this slice mutates:
 
 | Field group                         | Source                             | Why                                                             |
 | ----------------------------------- | ---------------------------------- | --------------------------------------------------------------- |
@@ -65,8 +66,11 @@ Reads are cache-aside over Redis, but only over the fields this slice mutates:
 | capacity, reserved, remaining, sold | Inventory, read live every request | These move on claims, which produce no invalidation signal here |
 
 Keys are `events:published:list` and `events:published:<id>`, with a 15-minute TTL that is a
-backstop for a lost invalidation job, not the freshness mechanism. Publication status is part of the
-SQL predicate, so a draft is indistinguishable from a missing row and can never be cached as public.
+backstop for a lost invalidation job, not the freshness mechanism. The projection service calls
+`RedisManager.get`, `RedisManager.set` and `RedisManager.delete` directly; there is no second
+Event-specific Redis wrapper duplicating those database operations. Publication status is part of
+the SQL predicate, so a draft is indistinguishable from a missing row and can never be cached as
+public.
 
 The console bypasses the cache entirely: an organiser needs current truth, and the console includes
 drafts, which never belong in a published cache. Its responses are `private, no-cache` so a shared

@@ -2,9 +2,9 @@ import { expect } from "chai";
 
 import { CustomError } from "core/global/errors";
 import { EventProjectionService } from "Modules/Event/service/event-projection.service";
-import { FakeEventCache } from "./helpers/fake-event-cache";
 import { FakeEventInventoryRepository, makeInventory } from "./helpers/fake-event-inventory.repository";
 import { FakeEventRepository, makeEvent } from "./helpers/fake-event.repository";
+import { FakeRedisStore } from "./helpers/fake-redis-store";
 
 const PUBLISHED_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const DRAFT_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -15,11 +15,11 @@ const OTHER_ORGANISER_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const build = (
   rows = [makeEvent({ id: PUBLISHED_ID })],
   snapshots = [makeInventory(PUBLISHED_ID)],
-  cache = new FakeEventCache(),
+  redis = new FakeRedisStore(),
 ) => {
   const repository = new FakeEventRepository(rows);
   const inventory = new FakeEventInventoryRepository(snapshots);
-  return { repository, inventory, cache, service: new EventProjectionService(repository, inventory, cache) };
+  return { repository, inventory, redis, service: new EventProjectionService(repository, inventory, redis) };
 };
 
 describe("EventProjectionService", () => {
@@ -175,15 +175,21 @@ describe("EventProjectionService", () => {
     });
 
     it("falls back to Postgres when the cache is unavailable", async () => {
-      const { service, repository } = build([makeEvent({ id: PUBLISHED_ID })], [], new FakeEventCache(true));
+      const { service, repository } = build([makeEvent({ id: PUBLISHED_ID })], [], new FakeRedisStore(true));
 
       expect(await service.listPublished()).to.have.lengthOf(1);
       expect(await service.listPublished()).to.have.lengthOf(1);
       expect(repository.reads).to.equal(2);
     });
 
+    it("does not fail a Postgres read when the shared Redis write is unavailable", async () => {
+      const { service } = build([makeEvent({ id: PUBLISHED_ID })], [], new FakeRedisStore(true));
+
+      expect(await service.listPublished()).to.have.lengthOf(1);
+    });
+
     it("never caches a draft, even when one is requested by id", async () => {
-      const { service, cache } = build([makeEvent({ id: DRAFT_ID, status: "draft" })], []);
+      const { service, redis } = build([makeEvent({ id: DRAFT_ID, status: "draft" })], []);
 
       try {
         await service.getPublishedById(DRAFT_ID);
@@ -192,7 +198,7 @@ describe("EventProjectionService", () => {
         /* expected */
       }
 
-      expect(cache.writes).to.equal(0);
+      expect(redis.writes).to.equal(0);
     });
 
     it("never serves the console from cache, since an organiser needs current truth", async () => {
@@ -202,6 +208,28 @@ describe("EventProjectionService", () => {
       await service.listForOrganiser(ORGANISER_ID);
 
       expect(repository.reads).to.equal(2);
+    });
+
+    it("invalidates the descriptor and list through the shared Redis store", async () => {
+      const { service, redis } = build();
+
+      await service.invalidateEvent(PUBLISHED_ID);
+
+      expect(redis.deleted).to.deep.equal([
+        `events:published:${PUBLISHED_ID}`,
+        "events:published:list",
+      ]);
+    });
+
+    it("propagates invalidation failures so the queue worker can retry", async () => {
+      const { service } = build([], [], new FakeRedisStore(true));
+
+      try {
+        await service.invalidateEvent(PUBLISHED_ID);
+        expect.fail("expected invalidateEvent to throw");
+      } catch (error) {
+        expect((error as Error).message).to.equal("redis down");
+      }
     });
   });
 });

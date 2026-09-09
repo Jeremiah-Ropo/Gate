@@ -3,7 +3,7 @@ import { Job, Worker } from "bullmq";
 import queueManager from "core/global/shared/queue/queue-manager";
 import { logWorkerFailure } from "core/global/shared/queue/worker/worker-error.util";
 import logger from "core/global/utils/logger";
-import eventCache from "../service/event-cache";
+import eventProjectionService from "../service/event-projection.service";
 import { EVENT_CACHE_QUEUE, IEventCacheInvalidateJob } from "./event-cache.entity";
 
 /**
@@ -18,7 +18,7 @@ export const startEventCacheWorker = (): Worker => {
       if (job.data.version !== 1) {
         throw new Error(`Unsupported ${job.name} envelope version: ${job.data.version}`);
       }
-      await eventCache.invalidateEvent(job.data.eventId);
+      await eventProjectionService.invalidateEvent(job.data.eventId);
       logger.info(
         `[EventCache] invalidated event ${job.data.eventId} after ${job.data.reason} (correlationId=${job.data.correlationId})`,
       );

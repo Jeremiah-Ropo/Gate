@@ -47,10 +47,11 @@ transaction as the event, because Inventory's schema requires it to exist from t
 
 ### Caching
 
-Published-event reads are cache-aside over Redis, invalidated by a BullMQ job published _after_ the
-event mutation commits (`src/Modules/Event/queue/`). Reads and writes degrade to a miss if Redis is
-unreachable, so browse falls back to Postgres rather than failing. The 15-minute TTL in
-`service/event-cache.ts` is a backstop for a dropped job, not the freshness mechanism.
+Published-event reads are cache-aside over the shared `core/db/redis` `RedisManager`, coordinated by
+`service/event-projection.service.ts` and invalidated by a BullMQ job published _after_ the event
+mutation commits (`src/Modules/Event/queue/`). Reads and writes degrade to a miss if Redis is
+unreachable, so browse falls back to Postgres rather than failing. The 15-minute TTL in the
+projection service is a backstop for a dropped job, not the freshness mechanism.
 
 Only event-owned fields are cached. Inventory's figures are read live on every request, because
 they move on claims — and a claim is not an event mutation, so it produces no invalidation signal

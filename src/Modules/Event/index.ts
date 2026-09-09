@@ -5,8 +5,8 @@
  * consumes the published-event projection from here and serves it over its own anonymous HTTP
  * endpoints. Anything not re-exported below is internal and may change without notice.
  *
- * Note for browse: coverImage is intentionally not in the projection. Say so at API contract
- * review if the browse surface needs it and it can be added to the descriptor.
+ * The projection includes the event-owned fields required by both the organiser console and public
+ * browse. Inventory counters remain live and are merged by the projection service.
  */
 export { default as eventProjectionService } from "./service/event-projection.service";
 export type {

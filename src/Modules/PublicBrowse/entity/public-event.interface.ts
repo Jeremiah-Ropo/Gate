@@ -1,9 +1,5 @@
 import type { IPublishedEventProjection } from "Modules/Event";
 
-// This slice's own anonymous-facing shape, trimmed from Events' projection rather than
-// passed straight through: `reserved`/`sold` are Inventory's internal bookkeeping, not
-// something an anonymous visitor needs. `capacity` + `remaining` is enough to render
-// availability. See toPublicEvent for the mapping.
 export interface IPublicEvent {
   id: string;
   name: string;
