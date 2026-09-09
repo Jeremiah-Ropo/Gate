@@ -16,6 +16,9 @@ export interface QueuedScan {
   scannedAt: string;
   localStatus: CheckInStatus;
   holderName: string | null;
+  // Null when the payload never verified, so there is no ticket to point at. Kept so the
+  // admitted set can be rebuilt from durable storage after a reload.
+  ticketId: string | null;
 }
 
 export const enqueue = (scan: QueuedScan) => idb.put(SCAN_STORE, scan);

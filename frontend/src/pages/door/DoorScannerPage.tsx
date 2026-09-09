@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "@/components/StatusMessage";
 import { useAuth } from "@/context/AuthContext";
 import { useDoorSession } from "@/lib/door/useDoorSession";
-import { enqueue } from "@/lib/door/scanQueue";
+import { enqueue, pendingFor } from "@/lib/door/scanQueue";
 import { useScanSync } from "@/lib/door/useScanSync";
 import { verifyTicket, type VerifiedTicket } from "@/lib/door/verifyTicket";
 
@@ -48,12 +48,39 @@ export function DoorScannerPage() {
   const { eventId = "" } = useParams<{ eventId: string }>();
   const { isPreview } = useAuth();
   const { manifest, verify, fromCache, error, isLoading, refresh } = useDoorSession(eventId);
-  const { pending, conflicts, isOnline, isSyncing, sync, refreshCount } = useScanSync(eventId);
   const [payload, setPayload] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
-  // Tickets admitted on this device since the manifest was fetched. Without it a second scan
-  // of the same code would go green again until the next refresh.
+
+  /**
+   * Every ticket this device treats as already admitted. Only ever grows, and is only ever
+   * merged into -- from the manifest at the start of a shift, from the server on each sync,
+   * and from this device's own scans.
+   *
+   * Replacing it would be a bug rather than a simplification: an admission this device made
+   * but has not synced is still a person inside the venue, and forgetting them would let the
+   * same ticket go green a second time.
+   */
   const [seen, setSeen] = useState<string[]>([]);
+  const admit = useCallback((ticketIds: string[]) => {
+    setSeen((prev) => [...new Set([...prev, ...ticketIds])]);
+  }, []);
+
+  const { pending, conflicts, isOnline, isSyncing, sync, refreshCount } = useScanSync(eventId, admit);
+
+  // Rebuilt from durable storage rather than starting empty, so a refresh or a killed app
+  // mid-shift does not make the door forget who it let in. The queue is the record: a
+  // success is written there before the screen reports admission.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const queued = await pendingFor(eventId);
+      const admitted = queued.filter((scan) => scan.localStatus === "success").map((scan) => scan.ticketId);
+      if (!cancelled) admit(admitted.filter((id): id is string => Boolean(id)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, admit]);
 
   if (isPreview) {
     return (
@@ -80,7 +107,7 @@ export function DoorScannerPage() {
     const result = await verifyTicket(code, verify);
     const next = decide(result, eventId, manifest.blockedTicketIds, [...manifest.checkedInTicketIds, ...seen]);
     if (next.outcome === "success" && result.ticketId) {
-      setSeen((prev) => [...prev, result.ticketId as string]);
+      admit([result.ticketId]);
     }
     setDecision(next);
     setPayload("");
@@ -95,6 +122,8 @@ export function DoorScannerPage() {
       scannedAt: new Date().toISOString(),
       localStatus: next.outcome,
       holderName: next.holderName,
+      // Stored so the admitted set can be rebuilt from the queue after a reload.
+      ticketId: result.ticketId,
     });
     await refreshCount();
     void sync();
@@ -106,7 +135,7 @@ export function DoorScannerPage() {
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900">{manifest.eventName}</h1>
           <p className="mt-1 text-xs text-neutral-500">
-            {manifest.checkedInTicketIds.length + seen.length} checked in · {manifest.blockedTicketIds.length} blocked
+            {new Set([...manifest.checkedInTicketIds, ...seen]).size} checked in · {manifest.blockedTicketIds.length} blocked
             {fromCache ? " · offline, using the last loaded list" : ""}
           </p>
         </div>
