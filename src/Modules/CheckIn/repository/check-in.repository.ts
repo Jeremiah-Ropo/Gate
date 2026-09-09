@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import { ECheckInStatus } from "core/global/entities/enums";
 import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
@@ -43,6 +43,25 @@ class CheckInRepository implements ICheckInRepository {
       .where(and(eq(CheckInTable.ticketId, ticketId), eq(CheckInTable.status, ECheckInStatus.SUCCESS)))
       .limit(1);
     return checkIn ?? null;
+  }
+
+  // Only the ticket ids, not the rows: this feeds the door's session manifest, which is
+  // downloaded over whatever connection a venue has. Filtered on (eventId, status), which is
+  // exactly check_ins_event_status_idx. The isNotNull guard is for scans of codes that never
+  // resolved to a ticket -- they cannot be success rows today, but a null here would become a
+  // null in the manifest and a crash at the door.
+  async listSuccessTicketIdsByEvent(eventId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ ticketId: CheckInTable.ticketId })
+      .from(CheckInTable)
+      .where(
+        and(
+          eq(CheckInTable.eventId, eventId),
+          eq(CheckInTable.status, ECheckInStatus.SUCCESS),
+          isNotNull(CheckInTable.ticketId),
+        ),
+      );
+    return rows.map((row) => row.ticketId as string);
   }
 
   async create(data: NewCheckIn): Promise<CheckIn> {
