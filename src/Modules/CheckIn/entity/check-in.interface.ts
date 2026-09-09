@@ -37,8 +37,22 @@ export interface ICheckInSessionManifest {
   blockedTicketIds: string[];
 }
 
+/**
+ * A synced batch, plus every ticket admitted for this event so far.
+ *
+ * The second field is how a door learns what other doors have done. A device decides
+ * admission locally, so its own list only covers scans it took; the manifest it downloaded
+ * at the start of the shift is frozen at that moment. Returning the current set on every
+ * sync is what keeps a door that has been open for hours from going green on a ticket
+ * somebody else already admitted.
+ */
+export interface ISyncCheckInResponse {
+  results: ICheckInResult[];
+  allCheckedInIds: string[];
+}
+
 export interface ICheckInService {
-  sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]>;
+  sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ISyncCheckInResponse>;
   getSessionManifest(eventId: string): Promise<ICheckInSessionManifest>;
   listByTicket(ticketId: string): Promise<CheckIn[]>;
 }

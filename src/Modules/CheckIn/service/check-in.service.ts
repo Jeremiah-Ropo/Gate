@@ -14,6 +14,7 @@ import {
   ICheckInResult,
   ICheckInService,
   ICheckInSessionManifest,
+  ISyncCheckInResponse,
   IOfflineScanDTO,
   ISyncCheckInDTO,
 } from "../entity/check-in.interface";
@@ -195,14 +196,18 @@ export class CheckInService implements ICheckInService {
     };
   }
 
-  async sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]> {
+  async sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ISyncCheckInResponse> {
     const results: ICheckInResult[] = [];
     // Sequential on purpose: scans on the same ticket code within one batch must be
     // resolved in submission order so the second one correctly lands as a duplicate.
     for (const scan of payload.scans) {
       results.push(await this.processScan(scannedBy, eventId, scan));
     }
-    return results;
+
+    // Read after the batch is written, so a door sees its own scans reflected back and can
+    // treat this as the authoritative set rather than having to union it with the results.
+    const allCheckedInIds = await this.repository.listSuccessTicketIdsByEvent(eventId);
+    return { results, allCheckedInIds };
   }
 
   /**
