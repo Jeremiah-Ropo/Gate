@@ -50,14 +50,18 @@ describe("EventProjectionService", () => {
         name: "Lagos Tech Summit",
         description: null,
         venue: "Landmark Centre",
+        address: null,
+        coverImage: null,
         startsAt: new Date("2026-03-01T09:00:00.000Z"),
+        ticketPrice: 0,
+        currency: "NGN",
         capacity: 100,
         reserved: 5,
         sold: 25,
         remaining: 70,
       });
       // The projection is the contract other slices build on: internals must not ride along.
-      expect(summit).to.not.have.any.keys("createdBy", "slug", "ticketPrice", "coverImage", "status");
+      expect(summit).to.not.have.any.keys("createdBy", "slug", "status");
     });
 
     it("returns an empty list when nothing is published", async () => {

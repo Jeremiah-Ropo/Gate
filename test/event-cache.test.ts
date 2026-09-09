@@ -11,7 +11,11 @@ const descriptor: IPublishedEventDescriptor = {
   name: "Lagos Tech Summit",
   description: null,
   venue: "Landmark Centre",
+  address: null,
+  coverImage: null,
   startsAt: new Date("2026-03-01T09:00:00.000Z"),
+  ticketPrice: 0,
+  currency: "NGN",
 };
 
 /**

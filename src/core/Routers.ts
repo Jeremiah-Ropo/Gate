@@ -5,6 +5,7 @@ import createCheckInRoutes from "Modules/CheckIn/routes/check-in.routes";
 import EventMemberRoutes from "Modules/EventMember/routes/event-member.routes";
 import createEventConsoleRoutes from "Modules/Event/routes/event-console.routes";
 import createEventRoutes from "Modules/Event/routes/event.routes";
+import createPublicEventRoutes from "Modules/PublicBrowse/routes/public-event.routes";
 import createTicketRoutes from "Modules/Ticket/routes/ticket.routes";
 import TicketReservationRoutes from "Modules/TicketReservation/routes/ticket-reservation.routes";
 import UserRoutes from "Modules/User/routes/user.routes";
@@ -24,6 +25,10 @@ export class SetupRouters {
     // behind them is guarded. Anonymous published-event reads are not served here — the Public
     // browse slice owns those and consumes the projection exported from Modules/Event.
     app.use(`${this.apiPrefix}/console`, createEventConsoleRoutes());
+
+    // Public browse — no auth by design (brief item 2). Consumes Modules/Event's exported
+    // eventProjectionService rather than reading Postgres/Redis itself (see ADR 0010).
+    app.use(`${this.apiPrefix}/events`, throttleMiddleware(rateLimitPolicies.publicBrowse), createPublicEventRoutes());
 
     app.use(`${this.apiPrefix}/user`, authenticated, UserRoutes);
     app.use(`${this.apiPrefix}/event`, authenticated, createEventRoutes());

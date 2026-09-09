@@ -39,13 +39,23 @@ export interface IUpdateEventDTO {
  * The event-owned half of the projection. Only Events mutates these fields, which is what will make
  * them safe to cache: every value here is invalidated by a committed event mutation. Nothing from
  * events_inventory belongs in here.
+ *
+ * address/coverImage/ticketPrice/currency added at Public browse's request (raised per the note in
+ * Modules/Event/index.ts): browse and the organiser console both need to show a price, and an
+ * organiser can't edit what they can't see. All four are set once at publish time and only change
+ * through an event mutation, so they carry the same cache-invalidation guarantee as the rest of
+ * this descriptor.
  */
 export interface IPublishedEventDescriptor {
   id: string;
   name: string;
   description: string | null;
   venue: string | null;
+  address: string | null;
+  coverImage: string | null;
   startsAt: Date;
+  ticketPrice: number;
+  currency: string;
 }
 
 /**
