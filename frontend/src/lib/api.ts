@@ -2,6 +2,7 @@ import type {
   AuthSession,
   CheckIn,
   DoorEvent,
+  DoorManifest,
   EventStatus,
   GateEvent,
   GateTicket,
@@ -181,6 +182,14 @@ export function uploadEventCoverImage(eventId: string, file: File): Promise<Gate
 // Being staff is not the same as being on this event's door.
 export function listMyDoorEvents(): Promise<DoorEvent[]> {
   return request<DoorEvent[]>("/event-members/my-events");
+}
+
+// Everything a door needs for a shift, fetched once. After this the device can decide
+// admission on its own: the public key proves a ticket is genuine, and the two id lists
+// cover the cases a signature cannot, because both describe things that changed after the
+// ticket was signed.
+export function getDoorSession(eventId: string): Promise<DoorManifest> {
+  return request<DoorManifest>(`/check-in/events/${eventId}/session`);
 }
 
 export function getCheckInsForTicket(ticketId: string): Promise<CheckIn[]> {
