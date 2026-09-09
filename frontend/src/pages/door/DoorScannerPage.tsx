@@ -4,6 +4,8 @@ import { useParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "@/components/StatusMessage";
 import { useAuth } from "@/context/AuthContext";
 import { useDoorSession } from "@/lib/door/useDoorSession";
+import { enqueue } from "@/lib/door/scanQueue";
+import { useScanSync } from "@/lib/door/useScanSync";
 import { verifyTicket, type VerifiedTicket } from "@/lib/door/verifyTicket";
 
 type Outcome = "success" | "duplicate" | "denied" | "invalid";
@@ -46,6 +48,7 @@ export function DoorScannerPage() {
   const { eventId = "" } = useParams<{ eventId: string }>();
   const { isPreview } = useAuth();
   const { manifest, verify, fromCache, error, isLoading, refresh } = useDoorSession(eventId);
+  const { pending, conflicts, isOnline, isSyncing, sync, refreshCount } = useScanSync(eventId);
   const [payload, setPayload] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
   // Tickets admitted on this device since the manifest was fetched. Without it a second scan
@@ -81,6 +84,20 @@ export function DoorScannerPage() {
     }
     setDecision(next);
     setPayload("");
+
+    // Queued before anything is sent. The scan is a fact the moment it happens, and the
+    // server hearing about it is a separate concern that may be minutes away.
+    await enqueue({
+      clientScanId: crypto.randomUUID(),
+      eventId,
+      // The raw scanned string, never re-encoded: the server verifies the same bytes.
+      ticketCode: code,
+      scannedAt: new Date().toISOString(),
+      localStatus: next.outcome,
+      holderName: next.holderName,
+    });
+    await refreshCount();
+    void sync();
   };
 
   return (
@@ -102,12 +119,44 @@ export function DoorScannerPage() {
         </button>
       </div>
 
+      <div className="mt-4 flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-xs">
+        <span className={`inline-flex h-2 w-2 rounded-full ${isOnline ? "bg-green-500" : "bg-neutral-400"}`} />
+        <span className="text-neutral-700">{isOnline ? "Online" : "Offline"}</span>
+        <span className="text-neutral-400">·</span>
+        <span className="text-neutral-700">{pending} waiting to sync</span>
+        {isSyncing && <span className="text-neutral-500">syncing…</span>}
+        {isOnline && pending > 0 && !isSyncing && (
+          <button type="button" onClick={() => void sync()} className="ml-auto font-medium text-neutral-900 underline">
+            Sync now
+          </button>
+        )}
+      </div>
+
       {decision && (
         <div className={`mt-6 rounded-xl p-6 ${OUTCOME_STYLE[decision.outcome]}`}>
           <p className="text-sm font-medium uppercase tracking-wide opacity-80">{decision.outcome}</p>
           {/* Large on purpose: this is the name a staff member reads off against an ID. */}
           {decision.holderName && <p className="mt-1 text-3xl font-semibold">{decision.holderName}</p>}
           <p className="mt-2 text-sm opacity-90">{decision.reason}</p>
+        </div>
+      )}
+
+      {conflicts.length > 0 && (
+        <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">
+            {conflicts.length} scan{conflicts.length === 1 ? "" : "s"} the server disagreed with
+          </p>
+          {/* The design accepts that two offline doors can both admit one ticket and detects
+              it on sync rather than preventing it. A conflict nobody can see is not detected,
+              so it goes on the screen. */}
+          <ul className="mt-2 space-y-1 text-xs text-amber-900">
+            {conflicts.map((conflict) => (
+              <li key={conflict.clientScanId}>
+                {conflict.holderName ?? "Unknown holder"} — this door said {conflict.localStatus}, the server recorded{" "}
+                {conflict.serverStatus} ({conflict.message})
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

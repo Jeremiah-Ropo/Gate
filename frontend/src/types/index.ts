@@ -103,6 +103,20 @@ export interface DoorManifest {
 
 export type CheckInStatus = "success" | "duplicate" | "invalid" | "denied";
 
+// What POST /check-in/events/:eventId/sync takes and returns.
+export interface OfflineScan {
+  clientScanId: string;
+  ticketCode: string;
+  scannedAt: string;
+}
+
+export interface ScanResult {
+  clientScanId: string;
+  status: CheckInStatus;
+  message: string;
+  ticketId: string | null;
+}
+
 export interface CheckIn {
   id: string;
   ticketId: string | null;
