@@ -4,15 +4,19 @@ import { Event } from "./event.model";
 
 /**
  * Projects a stored row onto the event-owned fields this slice publishes. Selecting explicitly
- * rather than spreading the row keeps internals — slug, createdBy, ticketPrice, coverImage — out
- * of the contract, so a column added later is opt-in instead of leaked by default.
+ * rather than spreading the row keeps internals — slug and createdBy — out of the contract, so a
+ * column added later is opt-in instead of leaked by default.
  */
 export const toDescriptor = (event: Event): IPublishedEventDescriptor => ({
   id: event.id,
   name: event.name,
   description: event.description,
   venue: event.venue,
+  address: event.address,
+  coverImage: event.coverImage,
   startsAt: event.starts_at,
+  ticketPrice: event.ticketPrice,
+  currency: event.currency,
 });
 
 /** Absent inventory is reported as null, never as 0 — 0 would read as sold out. */
