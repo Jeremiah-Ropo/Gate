@@ -10,7 +10,8 @@ import { LoginPage } from "@/pages/LoginPage";
 import { MyTicketsPage } from "@/pages/MyTicketsPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { RegisterPage } from "@/pages/RegisterPage";
-import { CheckInPage } from "@/pages/staff/CheckInPage";
+import { DoorEventPickerPage } from "@/pages/door/DoorEventPickerPage";
+import { DoorScannerPage } from "@/pages/door/DoorScannerPage";
 
 export function App() {
   return (
@@ -60,13 +61,21 @@ export function App() {
           }
         />
 
-        {/* Staff (+ admin, who the backend also allows to run the door): validate tickets
-            and manage the scanners used at check-in. */}
+        {/* The door. Staff and admin only, and the backend narrows it further: every door
+            route also requires an active event_members row for that specific event. */}
         <Route
-          path="/staff/check-in"
+          path="/door"
           element={
             <RoleRoute roles={["staff", "admin"]}>
-              <CheckInPage />
+              <DoorEventPickerPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/door/:eventId"
+          element={
+            <RoleRoute roles={["staff", "admin"]}>
+              <DoorScannerPage />
             </RoleRoute>
           }
         />

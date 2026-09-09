@@ -1,6 +1,6 @@
 import { ApiError, type EventPayload } from "@/lib/api";
 import { getPreviewStore, savePreviewStore } from "@/lib/previewStore";
-import type { CheckIn, CheckInDevice, EventStatus, GateEvent, GateTicket } from "@/types";
+import type { CheckIn, DoorEvent, EventStatus, GateEvent, GateTicket } from "@/types";
 
 function notFound(what: string): never {
   throw new ApiError(`${what} not found`, 404);
@@ -124,45 +124,10 @@ export async function voidTicket(ticketId: string): Promise<GateTicket> {
   return ticket;
 }
 
-export async function listCheckInDevices(eventId: string): Promise<CheckInDevice[]> {
-  return getPreviewStore().devicesByEvent[eventId] ?? [];
-}
-
-export async function registerCheckInDevice(payload: {
-  eventId: string;
-  name: string;
-  location?: string;
-}): Promise<{ device: CheckInDevice; deviceSecret: string }> {
-  const now = new Date().toISOString();
-  const device: CheckInDevice = {
-    id: crypto.randomUUID(),
-    eventId: payload.eventId,
-    name: payload.name,
-    location: payload.location ?? null,
-    deviceKey: crypto.randomUUID(),
-    isActive: true,
-    lastSyncedAt: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const store = getPreviewStore();
-  store.devicesByEvent[payload.eventId] = [...(store.devicesByEvent[payload.eventId] ?? []), device];
-  savePreviewStore();
-  return { device, deviceSecret: crypto.randomUUID() };
-}
-
-export async function deactivateCheckInDevice(deviceId: string): Promise<CheckInDevice> {
-  const store = getPreviewStore();
-  for (const devices of Object.values(store.devicesByEvent)) {
-    const device = devices.find((d) => d.id === deviceId);
-    if (device) {
-      device.isActive = false;
-      device.updatedAt = new Date().toISOString();
-      savePreviewStore();
-      return device;
-    }
-  }
-  notFound("Device");
+// The door is not available in preview: verification needs a real public key from the
+// server's manifest, and the preview store has no signing key to produce one against.
+export async function listMyDoorEvents(): Promise<DoorEvent[]> {
+  return [];
 }
 
 export async function getCheckInsForTicket(ticketId: string): Promise<CheckIn[]> {

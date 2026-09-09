@@ -1,12 +1,11 @@
 import { mockEvents } from "@/lib/mockEvents";
-import type { CheckIn, CheckInDevice, GateEvent, GateTicket } from "@/types";
+import type { CheckIn, GateEvent, GateTicket } from "@/types";
 
 const STORAGE_KEY = "gate.preview.store";
 
 interface PreviewStore {
   events: GateEvent[];
   ticketsByOwner: Record<string, GateTicket[]>;
-  devicesByEvent: Record<string, CheckInDevice[]>;
   checkInsByTicket: Record<string, CheckIn[]>;
 }
 
@@ -14,7 +13,6 @@ function seed(): PreviewStore {
   return {
     events: mockEvents.map((event) => ({ ...event, inventory: event.inventory ? { ...event.inventory } : null })),
     ticketsByOwner: {},
-    devicesByEvent: {},
     checkInsByTicket: {},
   };
 }

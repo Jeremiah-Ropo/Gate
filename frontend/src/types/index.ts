@@ -78,16 +78,14 @@ export interface GateTicket {
   updatedAt: string;
 }
 
-export interface CheckInDevice {
-  id: string;
+// One row of GET /event-members/my-events: an event this user may work the door for.
+export interface DoorEvent {
   eventId: string;
-  name: string;
-  location: string | null;
-  deviceKey: string;
-  isActive: boolean;
-  lastSyncedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
+  eventName: string;
+  startsAt: string;
+  venue: string | null;
+  role: "door_staff" | "organizer";
+  status: "active" | "revoked";
 }
 
 export type CheckInStatus = "success" | "duplicate" | "invalid" | "denied";
@@ -96,7 +94,7 @@ export interface CheckIn {
   id: string;
   ticketId: string | null;
   scannedCode: string;
-  deviceId: string;
+  eventId: string;
   scannedBy: string | null;
   status: CheckInStatus;
   scannedAt: string;

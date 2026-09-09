@@ -27,7 +27,7 @@ export function Navbar() {
                 </Link>
               )}
               {user?.role === "staff" && (
-                <Link to="/staff/check-in" className="font-medium text-neutral-700 hover:text-neutral-900">
+                <Link to="/door" className="font-medium text-neutral-700 hover:text-neutral-900">
                   Door check-in
                 </Link>
               )}
@@ -36,7 +36,7 @@ export function Navbar() {
                   <Link to="/admin/events" className="font-medium text-neutral-700 hover:text-neutral-900">
                     Manage events
                   </Link>
-                  <Link to="/staff/check-in" className="font-medium text-neutral-700 hover:text-neutral-900">
+                  <Link to="/door" className="font-medium text-neutral-700 hover:text-neutral-900">
                     Door check-in
                   </Link>
                 </>
