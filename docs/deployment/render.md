@@ -20,8 +20,9 @@ browser/client -> gate-api -> gate-db
 
 ## Before the first deployment
 
-1. Review and merge #30 (frontend integration), then #11 (CI), then #23 (this Blueprint).
-   Retarget each child to main after its parent lands and confirm the checks are green.
+1. Merge #11 (CI), resolve and merge #37 (frontend integration), then merge #38
+   (event-cache refactor). Retarget #23 (this Blueprint) to `main` only after those
+   application changes land, and confirm every required check is green.
 2. In Render, create a new Blueprint from this repository and review the paid resource estimates before applying it.
 3. Enter `CLOUD_NAME`, `API_KEY`, and `API_SECRET` when Render prompts. Do not put their values in Git.
    Set `gate-web`'s `VITE_API_URL` to the API's actual public HTTPS URL plus `/v1`.
@@ -45,14 +46,11 @@ a release, preventing the API and worker from racing the same migration.
 
 ## Current release blockers
 
-- Events #15, caching #16 and signing #28 are merged. #30 wires public projections,
-  removes obsolete direct issuance and adds reservation checkout; local TypeScript,
-  builds and API/browser smoke tests pass.
-- The #30 → #11 → #23 review stack must land with green checks. Do not bypass a
-  failing CI or security check.
-- Ayo must wire the signing helper and attendee-name contract into purchase.
-- Reservation #25 is merged as a foundation. Expiry and payment-recovery workers
-  remain follow-ups; a healthy worker process alone does not prove those jobs exist.
+- The event, reservation, payment-recovery, ticket-signing and door stacks through #36
+  are merged. #37 still needs its frontend integration conflicts and token-refresh
+  handling resolved; #38 remains stacked behind it.
+- #11 must land with green quality, frontend and security checks. #23 must then be
+  updated onto the final application state and pass the same gate before deployment.
 - Exercise the real browser journey: register, reserve, pay, show signed QR, check in,
   synchronize, and verify expiry/recovery. Mock/preview mode is not deployment evidence.
 
