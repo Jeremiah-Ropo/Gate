@@ -25,7 +25,7 @@ services:
     region: frankfurt
     plan: free
     branch: main
-    buildCommand: yarn install --frozen-lockfile && yarn build
+    buildCommand: YARN_PRODUCTION=false yarn install --frozen-lockfile && yarn build
     preDeployCommand: yarn db:migrate
     startCommand: yarn start:api
     healthCheckPath: /health/ready
@@ -71,7 +71,7 @@ services:
     region: frankfurt
     plan: free
     branch: main
-    buildCommand: yarn install --frozen-lockfile && yarn build
+    buildCommand: YARN_PRODUCTION=false yarn install --frozen-lockfile && yarn build
     startCommand: yarn start:worker
     healthCheckPath: /
     maxShutdownDelaySeconds: 60
