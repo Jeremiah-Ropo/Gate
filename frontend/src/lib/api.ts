@@ -3,6 +3,8 @@ import type {
   CheckIn,
   DoorEvent,
   DoorManifest,
+  OfflineScan,
+  SyncResponse,
   EventStatus,
   GateEvent,
   GateTicket,
@@ -190,6 +192,17 @@ export function listMyDoorEvents(): Promise<DoorEvent[]> {
 // ticket was signed.
 export function getDoorSession(eventId: string): Promise<DoorManifest> {
   return request<DoorManifest>(`/check-in/events/${eventId}/session`);
+}
+
+// A batch of scans the door already decided on. Idempotency-Key so a retry after a dropped
+// connection is free, and each scan carries its own clientScanId so the server can recognise
+// one it has already recorded even if the whole batch is resent.
+export function syncScans(eventId: string, scans: OfflineScan[]): Promise<SyncResponse> {
+  return request<SyncResponse>(`/check-in/events/${eventId}/sync`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify({ scans }),
+  });
 }
 
 export function getCheckInsForTicket(ticketId: string): Promise<CheckIn[]> {

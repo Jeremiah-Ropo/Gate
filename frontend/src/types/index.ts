@@ -103,6 +103,27 @@ export interface DoorManifest {
 
 export type CheckInStatus = "success" | "duplicate" | "invalid" | "denied";
 
+// What POST /check-in/events/:eventId/sync takes and returns.
+export interface OfflineScan {
+  clientScanId: string;
+  ticketCode: string;
+  scannedAt: string;
+}
+
+export interface ScanResult {
+  clientScanId: string;
+  status: CheckInStatus;
+  message: string;
+  ticketId: string | null;
+}
+
+// What the server sends back after a batch. allCheckedInIds is every ticket admitted for
+// this event so far, which is how one door hears about admissions made at another.
+export interface SyncResponse {
+  results: ScanResult[];
+  allCheckedInIds: string[];
+}
+
 export interface CheckIn {
   id: string;
   ticketId: string | null;
