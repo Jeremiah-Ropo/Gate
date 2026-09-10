@@ -114,3 +114,58 @@ describe("POST /check-in/events/:eventId/sync access", () => {
     expect(res.status).to.not.be.oneOf(REFUSED_AT_THE_GATE);
   });
 });
+
+/**
+ * The manifest hands out the public key and the event's exception lists, so it is the one
+ * read that must be gated exactly as tightly as the write. These mirror the sync cases: if
+ * the two stacks ever drift apart, one of these fails.
+ */
+describe("GET /check-in/events/:eventId/session access", () => {
+  const originalIsActive = eventMemberService.isActiveMember;
+  const originalFindUser = userRepository.findById;
+  const REFUSED_AT_THE_GATE = [401, 403];
+
+  after(() => {
+    eventMemberService.isActiveMember = originalIsActive;
+    userRepository.findById = originalFindUser;
+  });
+
+  const get = (actor: { id: string; role: string }) =>
+    request(app)
+      .get(`/check-in/events/${EVENT_ID}/session`)
+      .set("Authorization", `Bearer ${tokenFor(actor)}`);
+
+  it("refuses an unauthenticated request", async () => {
+    const res = await request(app).get(`/check-in/events/${EVENT_ID}/session`);
+    expect(res.status).to.equal(401);
+  });
+
+  it("lets an active member of the event past the guards", async () => {
+    eventMemberService.isActiveMember = async () => true;
+    const res = await get({ id: DOOR_STAFF, role: ERole.STAFF });
+    expect(res.status).to.not.be.oneOf(REFUSED_AT_THE_GATE);
+  });
+
+  it("refuses staff who are not on this event's door", async () => {
+    // Otherwise any staff account could pull another event's public key and blocked list.
+    eventMemberService.isActiveMember = async () => false;
+    const res = await get({ id: DOOR_STAFF, role: ERole.STAFF });
+    expect(res.status).to.equal(403);
+  });
+
+  it("refuses an attendee even when they hold an active membership", async () => {
+    eventMemberService.isActiveMember = async () => true;
+    const res = await get({ id: DOOR_STAFF, role: ERole.ATTENDEE });
+    expect(res.status).to.equal(403);
+  });
+
+  it("rejects a non-uuid eventId before any lookup runs", async () => {
+    eventMemberService.isActiveMember = async () => {
+      throw new Error("membership should not be looked up for a malformed id");
+    };
+    const res = await request(app)
+      .get("/check-in/events/not-a-uuid/session")
+      .set("Authorization", `Bearer ${tokenFor({ id: DOOR_STAFF, role: ERole.STAFF })}`);
+    expect(res.status).to.equal(422);
+  });
+});

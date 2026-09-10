@@ -22,5 +22,6 @@ export interface ITicketRepository {
   findByCode(code: string): Promise<Ticket | null>;
   listByOwner(ownerId: string): Promise<Ticket[]>;
   countByEvent(eventId: string): Promise<number>;
+  listBlockedIdsByEvent(eventId: string): Promise<string[]>;
   update(id: string, data: Partial<NewTicket>): Promise<Ticket | null>;
 }
