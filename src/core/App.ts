@@ -140,7 +140,7 @@ export const startApi = async (): Promise<Server> => {
   await connectApiDependencies();
   const app = createApp();
   const port = Number(process.env.PORT || 8000);
-  const server = app.listen(port, () => logger.info({ port }, "API process started"));
+  const server = app.listen(port, "0.0.0.0", () => logger.info({ port }, "API process started"));
   let shuttingDown = false;
 
   const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
