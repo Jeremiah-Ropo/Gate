@@ -2,18 +2,22 @@
 
 - **Owner:** Ibukun / Platform
 - **Audience:** An engineer who did not attend the design sessions
-- **Last verified:** 2026-09-10 against Render `deploy/live-render`
+- **Last verified:** 2026-09-10 against Ibukun's Render workspace (`tea-daenjmtbedkc73dvk1ng`)
 
 ## Live resources
 
+All of these live on **Ibukun's workspace**, not the previous Taiwo account.
+
 | Resource | URL / ID |
 | --- | --- |
-| **API** | https://gate-api-0dl0.onrender.com |
-| **Web** | https://gate-web-vxp3.onrender.com |
-| **Worker** | https://gate-worker.onrender.com (HTTP wrapper only; jobs run in-process) |
-| **Postgres** | `gate-db` — `dpg-dahareht0dsc73fadkug-a` |
-| **Redis** | `gate-queue` — `red-dahareajnfac7391tps0` |
-| **Render dashboards** | API `srv-dahascp5efls738oe8p0`, worker `srv-dahasmek1f9s73ebcjvg`, web `srv-dahasg6k1f9s73ebbqpg` |
+| **API** | https://gate-api-c21c.onrender.com |
+| **Web** | https://gate-web-5k09.onrender.com |
+| **Worker** | https://gate-worker-b106.onrender.com (HTTP health wrapper; jobs run in-process) |
+| **Postgres** | `gate-db` — `dpg-dahi10p5efls73c1acp0-a` (Frankfurt, free; expires ~2026-10-10) |
+| **Redis** | `gate-queue` — `red-dahi10ss728c73b6lsr0` |
+| **Render dashboards** | API `srv-dahi2de1egvs7383l88g`, worker `srv-dahi2e67bikc73e9io5g`, web `srv-dahi2hmq1p3s73dl8qh0` |
+
+GitHub auto-deploy is not connected on this workspace. After pushing `main`, trigger a deploy from the dashboard or API. Check-in keys are generated with `yarn setup:ticket-keys` and stored as `PRIVATE_CHECKIN_KEY` / `PUBLIC_CHECKIN_KEY` on API and worker.
 
 ## First response
 
@@ -27,13 +31,13 @@
 
 ```bash
 # Liveness — no dependency calls
-curl -sS -D - https://gate-api-0dl0.onrender.com/health/live -o /dev/null
+curl -sS -D - https://gate-api-c21c.onrender.com/health/live -o /dev/null
 
 # Readiness — Postgres, Redis, BullMQ must respond within 2s
-curl -sS https://gate-api-0dl0.onrender.com/health/ready
+curl -sS https://gate-api-c21c.onrender.com/health/ready
 
 # Operational snapshot (JSON counters, no dashboard)
-curl -sS https://gate-api-0dl0.onrender.com/health/metrics | jq .
+curl -sS https://gate-api-c21c.onrender.com/health/metrics | jq .
 ```
 
 Expected `/health/metrics` keys:
@@ -56,14 +60,14 @@ Every API response includes `X-Request-Id`. Authenticated mutations that enqueue
 ```bash
 curl -sS -D - -o /dev/null \
   -H "Authorization: Bearer <token>" \
-  -X PATCH "https://gate-api-0dl0.onrender.com/v1/events/<eventId>" \
+  -X PATCH "https://gate-api-c21c.onrender.com/v1/event/<eventId>" \
   -H "Content-Type: application/json" \
   -d '{"title":"Runbook proof"}'
 ```
 
 Copy the `X-Request-Id` value from the response headers.
 
-2. In the Render dashboard for **`gate-worker`** (`srv-dahasmek1f9s73ebcjvg`), search logs for that same UUID (field `correlationId` on `Event cache invalidated` or `Worker job failed` lines).
+2. In the Render dashboard for **`gate-worker`** (`srv-dahi2e67bikc73e9io5g`), search logs for that same UUID (field `correlationId` on `Event cache invalidated` or `Worker job failed` lines).
 
 3. Optionally search **`gate-api`** logs for the same id (field `requestId` on the HTTP access log).
 
@@ -90,16 +94,16 @@ If the ids match, request-to-job correlation is working.
 
 1. Confirm PostgreSQL (`gate-db`) is healthy in Render.
 2. Restore Redis (`gate-queue`).
-3. Restart **`gate-api`** (`srv-dahascp5efls738oe8p0`) and verify:
+3. Restart **`gate-api`** (`srv-dahi2de1egvs7383l88g`) and verify:
 
 ```bash
-curl -sS https://gate-api-0dl0.onrender.com/health/ready
-curl -sS https://gate-api-0dl0.onrender.com/health/metrics | jq '.worker,.queues,.reservations'
+curl -sS https://gate-api-c21c.onrender.com/health/ready
+curl -sS https://gate-api-c21c.onrender.com/health/metrics | jq '.worker,.queues,.reservations'
 ```
 
-4. Restart **`gate-worker`** (`srv-dahasmek1f9s73ebcjvg`) and confirm logs show `Worker process started` plus a fresh `worker.heartbeatAt`.
+4. Restart **`gate-worker`** (`srv-dahi2e67bikc73e9io5g`) and confirm logs show `Worker process started` plus a fresh `worker.heartbeatAt`.
 5. Observe queue catch-up and falling `reservations.overduePending`.
-6. Run one public browse, claim, and check-in smoke test against https://gate-web-vxp3.onrender.com.
+6. Run one public browse, claim, and check-in smoke test against https://gate-web-5k09.onrender.com.
 
 ## Escalation and closeout
 

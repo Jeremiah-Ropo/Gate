@@ -27,7 +27,7 @@ services:
     branch: main
     buildCommand: YARN_PRODUCTION=false yarn install --frozen-lockfile && yarn build
     preDeployCommand: yarn db:migrate
-    startCommand: yarn start:api
+    startCommand: yarn db:migrate && yarn start:api
     healthCheckPath: /health/ready
     maxShutdownDelaySeconds: 30
     envVars:
