@@ -126,4 +126,27 @@ describe("EventService.updateEvent", () => {
       expect((error as CustomError).HttpStatusCode).to.equal(403);
     }
   });
+
+  it("lets a global admin edit an event they did not create", async () => {
+    const { service } = build([draft()]);
+
+    const updated = await service.updateEvent(EVENT_ID, ATTACKER_ID, { name: "Admin rename" }, "admin");
+    expect(updated.name).to.equal("Admin rename");
+  });
+});
+
+describe("EventService.deleteEvent", () => {
+  it("cancels the event and refuses a non-owner", async () => {
+    const { service } = build([makeEvent({ id: EVENT_ID, createdBy: ORGANISER_ID })]);
+
+    const deleted = await service.deleteEvent(EVENT_ID, ORGANISER_ID);
+    expect(deleted.status).to.equal("cancelled");
+
+    try {
+      await service.deleteEvent(EVENT_ID, ATTACKER_ID);
+      expect.fail("expected deleteEvent to reject a non-owner");
+    } catch (error) {
+      expect((error as CustomError).HttpStatusCode).to.equal(403);
+    }
+  });
 });

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "@/components/StatusMessage";
 import { errorMessage } from "@/lib/api";
+import { isEventDay } from "@/lib/eventDay";
 import { queryKeys } from "@/lib/queryClient";
 import { useGateClient } from "@/lib/useGateClient";
 
@@ -44,23 +45,40 @@ export function DoorEventPickerPage() {
         </div>
       ) : (
         <ul className="mt-6 space-y-3">
-          {events.map((event) => (
-            <li key={event.eventId}>
-              <Link
-                to={`/door/${event.eventId}`}
-                className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-5 hover:border-neutral-400"
-              >
-                <div>
-                  <p className="font-medium text-neutral-900">{event.eventName}</p>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    {new Date(event.startsAt).toLocaleString()}
-                    {event.venue ? ` · ${event.venue}` : ""} · {event.role.replace("_", " ")}
-                  </p>
-                </div>
-                <span className="text-sm font-medium text-neutral-700">Open door →</span>
-              </Link>
-            </li>
-          ))}
+          {events.map((event) => {
+            const open = isEventDay(event.startsAt);
+            return (
+              <li key={event.eventId}>
+                {open ? (
+                  <Link
+                    to={`/door/${event.eventId}`}
+                    className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-5 hover:border-neutral-400"
+                  >
+                    <div>
+                      <p className="font-medium text-neutral-900">{event.eventName}</p>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        {new Date(event.startsAt).toLocaleString()}
+                        {event.venue ? ` · ${event.venue}` : ""} · {event.role.replace("_", " ")}
+                      </p>
+                    </div>
+                    <span className="text-sm font-medium text-neutral-700">Open door →</span>
+                  </Link>
+                ) : (
+                  <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 p-5">
+                    <div>
+                      <p className="font-medium text-neutral-900">{event.eventName}</p>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        {new Date(event.startsAt).toLocaleString()}
+                        {event.venue ? ` · ${event.venue}` : ""} · {event.role.replace("_", " ")}
+                      </p>
+                      <p className="mt-2 text-xs text-neutral-600">Check-in opens on the event day.</p>
+                    </div>
+                    <span className="text-sm font-medium text-neutral-400">Not today</span>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

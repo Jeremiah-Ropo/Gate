@@ -29,8 +29,9 @@ const KEY_PREFIX = "events:published";
 const LIST_KEY = `${KEY_PREFIX}:list`;
 const descriptorKey = (eventId: string): string => `${KEY_PREFIX}:${eventId}`;
 
-// Backstop only — correctness comes from invalidation, not expiry.
-const TTL_SECONDS = 15 * 60;
+// Backstop only — correctness comes from invalidation after publish/update, not expiry.
+// 24h so a dropped invalidation job does not evict a still-correct catalogue mid-day.
+export const EVENT_CACHE_TTL_SECONDS = 24 * 60 * 60;
 
 /** Dates do not survive JSON, so they are revived on the way out. */
 type SerializedDescriptor = Omit<IPublishedEventDescriptor, "startsAt"> & { startsAt: string };
@@ -63,7 +64,7 @@ class EventCache implements IEventCache {
 
   private async write(key: string, value: unknown): Promise<void> {
     try {
-      await this.redis.set(key, JSON.stringify(value), TTL_SECONDS);
+      await this.redis.set(key, JSON.stringify(value), EVENT_CACHE_TTL_SECONDS);
     } catch (error) {
       logger.warn(`[EventCache] write skipped for ${key}: ${error}`);
     }

@@ -1,12 +1,21 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { createEvent, createReservation, listEvents, payReservation, setAuthToken } from "../src/lib/api";
+import {
+  createEvent,
+  createReservation,
+  listEvents,
+  listMyTickets,
+  payReservation,
+  setAuthToken,
+  setRefreshToken,
+} from "../src/lib/api";
 
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
   setAuthToken(null);
+  setRefreshToken(null);
 });
 
 function respond(data: unknown) {
@@ -72,5 +81,28 @@ describe("api", () => {
     }) as typeof fetch;
 
     await createEvent({ name: "Demo", startsAt: "2026-09-09T12:00:00Z", capacity: 3, ticketPrice: 100 });
+  });
+
+  test("expired access tokens refresh once and retry the original request", async () => {
+    setAuthToken("expired");
+    setRefreshToken("refresh-me");
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      if (path.endsWith("/auth/refresh-token")) {
+        expect(JSON.parse(String(init?.body))).toEqual({ refreshToken: "refresh-me" });
+        return respond({ token: "fresh" });
+      }
+      if (new Headers(init?.headers).get("Authorization") === "Bearer expired") {
+        return new Response(JSON.stringify({ success: false, errorMessage: "Invalid or expired credentials" }), {
+          status: 401,
+        });
+      }
+      expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer fresh");
+      return respond([]);
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await listMyTickets();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

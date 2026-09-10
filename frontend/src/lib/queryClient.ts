@@ -1,13 +1,12 @@
 import { QueryClient } from "@tanstack/react-query";
 
-// Public browse owns this slice's caching decision: event listings change on an organiser's
-// schedule, not every second, so a 30s staleTime avoids refetching on every tab focus while
-// still catching a newly published event within a demo-reasonable window. Ticket claims are
-// never cached — they're a write, handled as a mutation instead.
+// Public browse owns this slice's caching decision: listings change when an organiser
+// publishes, not on a timer. A 5-minute staleTime keeps the catalogue stable; publish and
+// update mutations invalidate `queryKeys.events` so a new event appears immediately.
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
+      staleTime: 5 * 60 * 1000,
       retry: 1,
       refetchOnWindowFocus: false,
     },

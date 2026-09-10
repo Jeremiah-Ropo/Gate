@@ -12,6 +12,15 @@ import { IAuthService, ILoginInputDTO, ILoginOutputDTO, ILogoutDTO, IRegisterInp
 const tokenHash = (token: string): string => createHash("sha256").update(token).digest("hex");
 const unauthorized = () => new CustomError(401, "Unauthorized", "Invalid or expired credentials");
 
+function bootstrapAdminEmail(): string {
+  return process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() ?? "";
+}
+
+function isBootstrapAdmin(email: string): boolean {
+  const expected = bootstrapAdminEmail();
+  return expected.length > 0 && expected === email;
+}
+
 export class AuthService implements IAuthService {
   constructor(
     private readonly users: IUserRepository = userRepository,
@@ -38,7 +47,7 @@ export class AuthService implements IAuthService {
         lastName: payload.lastName.trim(),
         email,
         passwordHash,
-        role: "attendee",
+        role: isBootstrapAdmin(email) ? "admin" : "attendee",
         isVerified: true,
       });
     } catch (error) {
@@ -57,7 +66,11 @@ export class AuthService implements IAuthService {
     if (!user || !user.isVerified || !(await BcryptEncryption.compare(payload.password, user.passwordHash))) {
       throw unauthorized();
     }
-    return this.issueTokens(user);
+    const promoted =
+      isBootstrapAdmin(user.email) && user.role !== "admin"
+        ? ((await this.users.update(user.id, { role: "admin" })) ?? user)
+        : user;
+    return this.issueTokens(promoted);
   }
 
   async authenticate(token: string): Promise<JwtPayload> {

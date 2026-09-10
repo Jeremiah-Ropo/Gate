@@ -1,14 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { EventStatusBadge } from "@/components/EventStatusBadge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/StatusMessage";
 import { errorMessage } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { queryKeys } from "@/lib/queryClient";
 import { useGateClient } from "@/lib/useGateClient";
 
 export function AdminEventsPage() {
   const client = useGateClient();
+  const queryClient = useQueryClient();
   const {
     data: events,
     isPending,
@@ -17,6 +19,14 @@ export function AdminEventsPage() {
   } = useQuery({
     queryKey: ["managed-events"],
     queryFn: client.listManagedEvents,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: client.deleteEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["managed-events"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.events });
+    },
   });
 
   const mine = events ?? [];
@@ -38,6 +48,7 @@ export function AdminEventsPage() {
 
       {isPending && <LoadingState label="Loading events…" />}
       {isError && <ErrorState message={errorMessage(error)} />}
+      {deleteMutation.isError && <ErrorState message={errorMessage(deleteMutation.error)} />}
       {!isPending && !isError && mine.length === 0 && <EmptyState message="You haven't created any events yet." />}
 
       {mine.length > 0 && (
@@ -81,13 +92,27 @@ export function AdminEventsPage() {
                   <td className="px-4 py-3">
                     <EventStatusBadge event={event} />
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right space-x-3">
                     <Link
                       to={`/admin/events/${event.id}/edit`}
                       className="font-medium text-neutral-900 hover:underline"
                     >
                       Edit
                     </Link>
+                    {event.status !== "cancelled" && (
+                      <button
+                        type="button"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => {
+                          if (window.confirm(`Delete “${event.name}”? It will be cancelled and removed from browse.`)) {
+                            deleteMutation.mutate(event.id);
+                          }
+                        }}
+                        className="font-medium text-red-600 hover:underline disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

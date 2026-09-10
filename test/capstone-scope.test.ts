@@ -36,6 +36,7 @@ describe("Capstone scope", () => {
       clearSession: async () => undefined,
       findByEmail: async () => null,
       searchByEmail: async () => [],
+      listAssignable: async () => [],
       findById: async () => user,
       create: async (data) => {
         created = data;

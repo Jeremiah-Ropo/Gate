@@ -24,6 +24,11 @@ class UserService {
     return users.map(toPublicUser);
   }
 
+  async listAssignable(query?: string): Promise<PublicUser[]> {
+    const users = await userRepository.listAssignable(query?.trim());
+    return users.map(toPublicUser);
+  }
+
   async updateUser(userId: string, data: IUpdateUserDTO): Promise<PublicUser> {
     const changes: IUpdateUserDTO = {};
     if (data.firstName !== undefined) changes.firstName = data.firstName.trim();

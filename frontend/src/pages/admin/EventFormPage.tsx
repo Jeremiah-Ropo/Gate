@@ -6,7 +6,7 @@ import { ErrorState, LoadingState } from "@/components/StatusMessage";
 import { errorMessage } from "@/lib/api";
 import { queryKeys } from "@/lib/queryClient";
 import { useGateClient } from "@/lib/useGateClient";
-import type { EventMemberWithUser, EventStatus, GateEvent, GateUser } from "@/types";
+import type { EventMemberWithUser, EventStatus, GateEvent } from "@/types";
 
 function toDatetimeLocal(iso: string): string {
   const d = new Date(iso);
@@ -72,6 +72,15 @@ function EventFormFields({
         ? client.updateEvent(eventId as string, { ...payload, ...(status !== existing?.status ? { status } : {}) })
         : client.createEvent({ ...payload, capacity: Number(capacity) });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.events });
+      queryClient.invalidateQueries({ queryKey: ["managed-events"] });
+      navigate("/admin/events");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => client.deleteEvent(eventId as string),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.events });
       queryClient.invalidateQueries({ queryKey: ["managed-events"] });
@@ -253,6 +262,23 @@ function EventFormFields({
         </button>
       </form>
 
+      {isEditing && eventId && existing?.status !== "cancelled" && (
+        <button
+          type="button"
+          disabled={deleteMutation.isPending}
+          onClick={() => {
+            if (!window.confirm(`Delete “${existing?.name ?? "this event"}”? It will be cancelled and removed from browse.`)) {
+              return;
+            }
+            deleteMutation.mutate();
+          }}
+          className="mt-4 w-full rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+        >
+          {deleteMutation.isPending ? "Deleting…" : "Delete event"}
+        </button>
+      )}
+      {deleteMutation.isError && <ErrorState message={errorMessage(deleteMutation.error)} />}
+
       {isEditing && eventId && <EventDoorStaffSection eventId={eventId} />}
     </div>
   );
@@ -261,23 +287,21 @@ function EventFormFields({
 function EventDoorStaffSection({ eventId }: { eventId: string }) {
   const client = useGateClient();
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState("");
-  const [searchResults, setSearchResults] = useState<GateUser[]>([]);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
 
   const membersQuery = useQuery({
     queryKey: ["event-members", eventId],
     queryFn: () => client.listEventMembers(eventId),
   });
 
+  const peopleQuery = useQuery({
+    queryKey: ["assignable-users"],
+    queryFn: () => client.listAssignableUsers(),
+  });
+
   const addMutation = useMutation({
     mutationFn: (userId: string) => client.addEventMember(eventId, userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["event-members", eventId] });
-      setEmail("");
-      setSearchResults([]);
-      setSearchError(null);
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event-members", eventId] }),
   });
 
   const revokeMutation = useMutation({
@@ -285,23 +309,16 @@ function EventDoorStaffSection({ eventId }: { eventId: string }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event-members", eventId] }),
   });
 
-  const handleSearch = async () => {
-    setSearchError(null);
-    setSearchResults([]);
-    try {
-      const results = await client.searchUsers(email.trim());
-      if (results.length === 0) {
-        setSearchError("No account found with that email.");
-        return;
-      }
-      setSearchResults(results);
-    } catch (err) {
-      setSearchError(errorMessage(err));
-    }
-  };
-
   const members = membersQuery.data ?? [];
   const activeMembers = members.filter((m) => m.status === "active");
+  const assignedIds = new Set(activeMembers.map((m) => m.userId));
+  const needle = filter.trim().toLowerCase();
+  const people = (peopleQuery.data ?? []).filter((user) => {
+    if (assignedIds.has(user.id)) return false;
+    if (!needle) return true;
+    const haystack = `${user.firstName} ${user.lastName} ${user.email}`.toLowerCase();
+    return haystack.includes(needle);
+  });
 
   return (
     <section className="mt-10">
@@ -344,35 +361,29 @@ function EventDoorStaffSection({ eventId }: { eventId: string }) {
 
       <div className="booking-panel mt-6 space-y-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor="staff-email">
-            Find by email
+          <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor="staff-filter">
+            Filter people
           </label>
-          <div className="flex gap-2">
-            <input
-              id="staff-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="person@example.com"
-              className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={handleSearch}
-              disabled={email.trim().length < 3}
-              className="shrink-0 rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-            >
-              Search
-            </button>
-          </div>
+          <input
+            id="staff-filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Name or email"
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          />
         </div>
 
-        {searchError && <ErrorState message={searchError} />}
+        {peopleQuery.isPending && <LoadingState label="Loading people…" />}
+        {peopleQuery.isError && <ErrorState message={errorMessage(peopleQuery.error)} />}
         {addMutation.isError && <ErrorState message={errorMessage(addMutation.error)} />}
 
-        {searchResults.length > 0 && (
+        {!peopleQuery.isPending && people.length === 0 && (
+          <p className="text-sm text-neutral-500">No one left to assign.</p>
+        )}
+
+        {people.length > 0 && (
           <ul className="divide-y divide-neutral-100 rounded-md border border-neutral-200">
-            {searchResults.map((user) => (
+            {people.map((user) => (
               <li key={user.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
                 <span>
                   {user.firstName} {user.lastName}{" "}

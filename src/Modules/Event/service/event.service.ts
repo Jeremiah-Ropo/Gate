@@ -1,5 +1,5 @@
 import { withTransaction, type DbTransaction } from "core/db/postgres";
-import { EEventStatus } from "core/global/entities/enums";
+import { EEventStatus, ERole } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
 import { generateUniqueSuffix, slugify } from "core/global/utils/helper";
 import cloudStorage from "core/providers/cloud-storage";
@@ -113,9 +113,9 @@ export class EventService implements IEventService {
     return this.repository.list();
   }
 
-  private async assertOwnership(id: string, requesterId: string): Promise<Event> {
+  private async assertCanManage(id: string, requesterId: string, requesterRole?: string): Promise<Event> {
     const event = await this.getById(id);
-    if (event.createdBy !== requesterId) {
+    if (event.createdBy !== requesterId && requesterRole !== ERole.ADMIN) {
       throw new CustomError(403, "Forbidden", "You do not manage this event");
     }
     return event;
@@ -143,8 +143,8 @@ export class EventService implements IEventService {
     return patch;
   }
 
-  async updateEvent(id: string, requesterId: string, payload: IUpdateEventDTO): Promise<Event> {
-    await this.assertOwnership(id, requesterId);
+  async updateEvent(id: string, requesterId: string, payload: IUpdateEventDTO, requesterRole?: string): Promise<Event> {
+    await this.assertCanManage(id, requesterId, requesterRole);
 
     // Publication creates the inventory row in the same transaction. Reaching `published` through
     // an ordinary edit would skip that entirely and leave an event nobody can claim a ticket for.
@@ -167,14 +167,35 @@ export class EventService implements IEventService {
     return updated;
   }
 
-  async uploadCoverImage(id: string, requesterId: string, tempFilePath: string): Promise<Event> {
-    await this.assertOwnership(id, requesterId);
+  /**
+   * Removes an event from the public catalogue. Related ticket rows keep the event id
+   * (FKs are ON DELETE no action), so this is a status transition to `cancelled` rather
+   * than a hard delete — the organiser list still shows it as cancelled.
+   */
+  async deleteEvent(id: string, requesterId: string, requesterRole?: string): Promise<Event> {
+    await this.assertCanManage(id, requesterId, requesterRole);
+    const updated = await this.repository.update(id, { status: EEventStatus.CANCELLED });
+    if (!updated) {
+      throw new CustomError(400, "BadRequest", "Event not deleted");
+    }
+    this.announceCommittedMutation(updated.id, "updated");
+    return updated;
+  }
+
+  async uploadCoverImage(
+    id: string,
+    requesterId: string,
+    tempFilePath: string,
+    requesterRole?: string,
+  ): Promise<Event> {
+    await this.assertCanManage(id, requesterId, requesterRole);
 
     const coverImage = await cloudStorage.uploadFile(tempFilePath, "events");
     const updated = await this.repository.update(id, { coverImage });
     if (!updated) {
       throw new CustomError(400, "BadRequest", "Cover image not updated");
     }
+    this.announceCommittedMutation(updated.id, "updated");
     return updated;
   }
 }

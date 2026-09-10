@@ -31,6 +31,16 @@ class UserController {
     }
   }
 
+  public static async listAssignable(req: Request, res: Response, next: NextFunction) {
+    try {
+      const query = typeof req.query.q === "string" ? req.query.q : undefined;
+      const users = await UserService.listAssignable(query);
+      res.customSuccess(200, "Users retrieved successfully", users);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
       const { currentPassword, newPassword } = req.body;

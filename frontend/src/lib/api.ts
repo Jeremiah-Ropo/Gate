@@ -29,9 +29,20 @@ export class ApiError extends Error {
 // Kept as module state rather than threaded through every call — every page needs it,
 // and Gate's backend only issues one token per session, so there's nothing to disambiguate.
 let authToken: string | null = null;
+let refreshToken: string | null = null;
+let onAccessTokenChange: ((token: string | null) => void) | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
 
 export function setAuthToken(token: string | null) {
   authToken = token;
+}
+
+export function setRefreshToken(token: string | null) {
+  refreshToken = token;
+}
+
+export function onAuthTokenRefreshed(listener: ((token: string | null) => void) | null) {
+  onAccessTokenChange = listener;
 }
 
 interface EventProjection extends Omit<GateEvent, "inventory" | "status"> {
@@ -62,7 +73,36 @@ interface ErrorEnvelope {
   errors: string[] | null;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function refreshAccessToken(): Promise<boolean> {
+  if (!refreshToken) return false;
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const res = await fetch(`${API_URL}/auth/refresh-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ refreshToken }),
+    });
+    const body = (await res.json().catch(() => null)) as SuccessEnvelope<{ token: string }> | ErrorEnvelope | null;
+    if (!res.ok || !body || body.success === false || !("data" in body) || !body.data.token) {
+      return false;
+    }
+    authToken = body.data.token;
+    onAccessTokenChange?.(authToken);
+    return true;
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+}
+
+function isAuthPath(path: string): boolean {
+  return path.startsWith("/auth/");
+}
+
+async function request<T>(path: string, init?: RequestInit, didRefresh = false): Promise<T> {
   const headers = new Headers(init?.headers);
   if (!(init?.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -74,6 +114,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // no-store avoids Express ETag 304 responses with empty bodies, which fetch cannot parse.
   const res = await fetch(`${API_URL}${path}`, { ...init, headers, cache: "no-store" });
   const body = (await res.json().catch(() => null)) as SuccessEnvelope<T> | ErrorEnvelope | null;
+
+  if (res.status === 401 && !didRefresh && !isAuthPath(path) && (await refreshAccessToken())) {
+    return request<T>(path, init, true);
+  }
 
   if (!res.ok || !body || body.success === false) {
     const message = body && "errorMessage" in body ? body.errorMessage : `Request failed (${res.status})`;
@@ -132,6 +176,11 @@ export function getMe(): Promise<GateUser> {
 
 export function searchUsers(email: string): Promise<GateUser[]> {
   return request<GateUser[]>(`/user/search?email=${encodeURIComponent(email)}`);
+}
+
+export function listAssignableUsers(query?: string): Promise<GateUser[]> {
+  const suffix = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
+  return request<GateUser[]>(`/user/assignable${suffix}`);
 }
 
 // Reservations are the only issuance path. The server owns payment state.
@@ -196,6 +245,10 @@ export function updateEvent(
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
+
+export function deleteEvent(eventId: string): Promise<GateEvent> {
+  return request<GateEvent>(`/event/${eventId}`, { method: "DELETE" });
 }
 
 export function uploadEventCoverImage(eventId: string, file: File): Promise<GateEvent> {

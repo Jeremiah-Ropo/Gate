@@ -8,6 +8,7 @@ const router: Router = Router();
 const organizerOnly = AuthGuardMiddleware.authorize(rolePolicies.organizer);
 
 router.get("/search", [organizerOnly, validateSearchUsers], UserController.searchUsers);
+router.get("/assignable", organizerOnly, UserController.listAssignable);
 router.get("/me", UserController.me);
 router.put("/me", [validateUpdateUser], UserController.updateUser);
 router.put("/change-password", [validateChangePassword], UserController.changePassword);

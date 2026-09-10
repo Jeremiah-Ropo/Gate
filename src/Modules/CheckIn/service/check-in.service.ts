@@ -3,6 +3,7 @@ import { DrizzleQueryError } from "drizzle-orm";
 
 import { ECheckInStatus, ETicketStatus } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
+import { isEventDay } from "core/global/utils/event-day";
 import { getPublicKeyForDistribution } from "core/global/utils/ticket-signature";
 import { IEventRepository } from "Modules/Event/entity/event.interface";
 import eventRepository from "Modules/Event/repository/event.repository";
@@ -147,6 +148,26 @@ export class CheckInService implements ICheckInService {
       };
     }
 
+    const event = await this.events.findById(eventId);
+    if (!event || !isEventDay(event.starts_at, scannedAt)) {
+      await this.repository.create({
+        ticketId: ticket.id,
+        eventId,
+        scannedCode: scan.ticketCode,
+        scannedBy,
+        status: ECheckInStatus.DENIED,
+        scannedAt,
+        isOfflineSync: true,
+        clientScanId: scan.clientScanId,
+      });
+      return {
+        clientScanId: scan.clientScanId,
+        status: ECheckInStatus.DENIED,
+        message: "Check-in is only available on the event day",
+        ticketId: ticket.id,
+      };
+    }
+
     // The success row is the admission. Nothing is written back to the ticket.
     //
     // findSuccessByTicket above is a check-then-act, so two doors syncing at the same
@@ -222,6 +243,9 @@ export class CheckInService implements ICheckInService {
     const event = await this.events.findById(eventId);
     if (!event) {
       throw new CustomError(404, "NotFound", "Event not found");
+    }
+    if (!isEventDay(event.starts_at)) {
+      throw new CustomError(403, "Forbidden", "Check-in is only available on the event day");
     }
 
     const [checkedInTicketIds, blockedTicketIds] = await Promise.all([

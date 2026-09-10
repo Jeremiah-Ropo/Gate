@@ -17,6 +17,7 @@ const createEventRoutes = (): Router => {
   // transaction; an ordinary update cannot reach `published` (see EventService.updateEvent).
   router.post("/publish", [organizerOnly, adminLimit, validatePublishEvent], EventController.publish);
   router.put("/:eventId", [organizerOnly, adminLimit, validateUpdateEvent], EventController.update);
+  router.delete("/:eventId", [organizerOnly, adminLimit], EventController.remove);
   router.post("/:eventId/cover-image", [organizerOnly, adminLimit], EventController.uploadCoverImage);
   return router;
 };

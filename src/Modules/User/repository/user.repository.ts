@@ -1,4 +1,4 @@
-import { and, eq, ilike } from "drizzle-orm";
+import { and, asc, eq, ilike, or } from "drizzle-orm";
 
 import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { IUserRepository } from "../entity/user.interface";
@@ -44,6 +44,24 @@ class UserRepository implements IUserRepository {
       .select()
       .from(UserTable)
       .where(ilike(UserTable.email, `%${query}%`))
+      .limit(limit);
+  }
+
+  async listAssignable(query?: string, limit = 100): Promise<User[]> {
+    const q = query?.trim();
+    const match = q
+      ? or(
+          ilike(UserTable.firstName, `%${q}%`),
+          ilike(UserTable.lastName, `%${q}%`),
+          ilike(UserTable.email, `%${q}%`),
+        )
+      : undefined;
+
+    return this.db
+      .select()
+      .from(UserTable)
+      .where(match)
+      .orderBy(asc(UserTable.firstName), asc(UserTable.lastName))
       .limit(limit);
   }
 

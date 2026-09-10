@@ -50,8 +50,9 @@ function buildService(options: { failCreateOnce?: Error } = {}) {
   } as any;
 
   const tickets = { findByCode: async () => ticket } as any;
+  const events = { findById: async () => ({ id: EVENT_ID, starts_at: new Date() }) } as any;
 
-  return { service: new CheckInService(repository, tickets), written };
+  return { service: new CheckInService(repository, tickets, events), written };
 }
 
 const scan = () => ({

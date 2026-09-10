@@ -31,7 +31,7 @@ function buildService(
     blocked?: string[];
   } = {},
 ) {
-  const { event = { id: EVENT_ID, name: EVENT_NAME }, checkedIn = [], blocked = [] } = options;
+  const { event = { id: EVENT_ID, name: EVENT_NAME, starts_at: new Date() }, checkedIn = [], blocked = [] } = options;
 
   const repository = {
     withTx: () => repository,
@@ -113,6 +113,17 @@ describe("Check-in session manifest", () => {
       "checkedInTicketIds",
       "blockedTicketIds",
     ]);
+  });
+
+  it("refuses a manifest when today is not the event day", async () => {
+    try {
+      await buildService({
+        event: { id: EVENT_ID, name: EVENT_NAME, starts_at: new Date("2020-01-01T12:00:00.000Z") },
+      }).getSessionManifest(EVENT_ID);
+      expect.fail("expected a 403");
+    } catch (error) {
+      expect(statusOf(error)).to.equal(403);
+    }
   });
 
   it("fails at the start of a shift when the configured key is unusable", async () => {

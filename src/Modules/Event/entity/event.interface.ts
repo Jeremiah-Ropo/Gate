@@ -88,8 +88,9 @@ export interface IEventService {
   publishEvent(createdBy: string, payload: IPublishEventDTO): Promise<Event>;
   getById(id: string): Promise<Event>;
   list(): Promise<Event[]>;
-  updateEvent(id: string, requesterId: string, payload: IUpdateEventDTO): Promise<Event>;
-  uploadCoverImage(id: string, requesterId: string, tempFilePath: string): Promise<Event>;
+  updateEvent(id: string, requesterId: string, payload: IUpdateEventDTO, requesterRole?: string): Promise<Event>;
+  deleteEvent(id: string, requesterId: string, requesterRole?: string): Promise<Event>;
+  uploadCoverImage(id: string, requesterId: string, tempFilePath: string, requesterRole?: string): Promise<Event>;
 }
 
 export interface IEventRepository {

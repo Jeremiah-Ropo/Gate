@@ -46,7 +46,12 @@ class EventController {
   public static async update(req: Request, res: Response, next: NextFunction) {
     try {
       const payload: IUpdateEventDTO = req.body;
-      const event = await EventService.updateEvent(req.params.eventId, req.jwtPayload.id, payload);
+      const event = await EventService.updateEvent(
+        req.params.eventId,
+        req.jwtPayload.id,
+        payload,
+        req.jwtPayload.role,
+      );
       res.customSuccess(200, "Event updated successfully", event);
     } catch (error) {
       next(error);
@@ -62,8 +67,22 @@ class EventController {
       if (!file) {
         throw new CustomError(400, "BadRequest", "coverImage field is missing in request body");
       }
-      const event = await EventService.uploadCoverImage(req.params.eventId, req.jwtPayload.id, file.tempFilePath);
+      const event = await EventService.uploadCoverImage(
+        req.params.eventId,
+        req.jwtPayload.id,
+        file.tempFilePath,
+        req.jwtPayload.role,
+      );
       res.customSuccess(200, "Cover image uploaded successfully", event);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async remove(req: Request, res: Response, next: NextFunction) {
+    try {
+      const event = await EventService.deleteEvent(req.params.eventId, req.jwtPayload.id, req.jwtPayload.role);
+      res.customSuccess(200, "Event deleted successfully", event);
     } catch (error) {
       next(error);
     }
