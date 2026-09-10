@@ -20,9 +20,8 @@ browser/client -> gate-api -> gate-db
 
 ## Before the first deployment
 
-1. Merge #11 (CI), resolve and merge #37 (frontend integration), then merge #38
-   (event-cache refactor). Retarget #23 (this Blueprint) to `main` only after those
-   application changes land, and confirm every required check is green.
+1. Merge #37 (frontend integration) and #38 (event-cache refactor). #11 (CI) is on
+   `main`. Confirm every required check is green before applying this Blueprint.
 2. In Render, create a new Blueprint from this repository and review the paid resource estimates before applying it.
 3. Enter `CLOUD_NAME`, `API_KEY`, and `API_SECRET` when Render prompts. Do not put their values in Git.
    Set `gate-web`'s `VITE_API_URL` to the API's actual public HTTPS URL plus `/v1`.
@@ -47,10 +46,9 @@ a release, preventing the API and worker from racing the same migration.
 ## Current release blockers
 
 - The event, reservation, payment-recovery, ticket-signing and door stacks through #36
-  are merged. #37 still needs its frontend integration conflicts and token-refresh
-  handling resolved; #38 remains stacked behind it.
-- #11 must land with green quality, frontend and security checks. #23 must then be
-  updated onto the final application state and pass the same gate before deployment.
+  are merged, and #11 (CI) is on `main`. #37 still needs its frontend integration
+  build and token-refresh handling resolved; #38 remains stacked behind it.
+- #23 is rebased onto `main` and must pass the CI gate before deployment.
 - Exercise the real browser journey: register, reserve, pay, show signed QR, check in,
   synchronize, and verify expiry/recovery. Mock/preview mode is not deployment evidence.
 
