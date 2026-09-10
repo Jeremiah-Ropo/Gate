@@ -1,54 +1,46 @@
-# Gate Frontend — Public Browse
+# Gate frontend integration
 
-The Public Browse slice's surface: anyone can browse published events with no account,
-and hits a register/login wall only at the point of claiming a ticket. Pairs with the
-Gate backend in the repository root over its `/v1` API.
+Use Node 24. Run `yarn install --frozen-lockfile`, `yarn lint`, `yarn test`,
+and `yarn build` inside frontend. Set VITE_API_URL to the API's public URL plus /v1.
 
-This directory was imported from `Jeremiah-Ropo/Gate-Frontend` with its Git history.
-Run frontend commands from this directory; the backend retains its own package and lockfile.
+## Real API journey
 
-## Pages
+- Anonymous browse uses GET /events and /events/:id: published projections with
+  live inventory, price, currency, address and cover image. No sample-data fallback.
+- Register/login returns the existing Platform session. No fabricated preview roles.
+- Reserve uses POST /reservations with a retry-stable idempotency key.
+- Payment uses POST /reservations/:id/pay. This capstone UI offers only the fake
+  provider's success, declined and slow scenarios; it never collects real cards.
+- Reservation ID stays in the URL so a reload can resume status polling. Processing
+  is not success. Cancellation uses DELETE on the reservation.
+- My tickets renders the issued payload locally. A legacy UUID is explicitly
+  labelled not ready for scanning. Payload shape is not signature verification;
+  the scanner must verify the signature and ID check.
+- Organisers list their own events through /console/events and create events
+  through the transactional /event/publish endpoint. Capacity is read-only on edit.
+- Device registration was removed. The staff page only inspects ticket/scan records;
+  it does not admit attendees or implement the offline scanner.
 
-- `/` — published events, no auth
-- `/events/:eventId` — event detail, no auth. "Get ticket" routes to `/register` if the
-  visitor isn't signed in, carrying `?next=` back to this page
-- `/register`, `/login` — registration signs in directly, matching Platform PR #9
-- Claiming a ticket (`POST /ticket`) only fires once the visitor holds a session
+## Team handoff
 
-## Run it
+Ayo owns signed issuance and the holder-name request/persistence contract, expiry
+and payment-recovery handlers. This PR deliberately does not edit those services.
+The current create-reservation DTO accepts only eventId; update this client when
+the attendee-name contract lands, rather than sending a field the server ignores.
+Timi owns offline signature verification, ID checks and event-scoped scanning/sync.
+The existing bearer-session storage remains in localStorage; this PR does not
+claim to migrate authentication to HTTP-only cookies.
 
-Use Node.js 24 (see `.node-version`). The frontend dependencies do not support Node.js 18 or 23.
+## Verification
 
-```bash
-cd frontend           # from the Gate repository root
-cp .env.example .env   # point VITE_API_URL at your Gate backend
-yarn install --frozen-lockfile
-yarn dev                # http://localhost:3000
+Frontend tests cover API paths, projection mapping, idempotency headers and
+processing-state handling. From the repository root, with a disposable local
+database and API running:
+
+```sh
+DATABASE_URL=postgresql://postgres@127.0.0.1:55439/gate_review node scripts/smoke-frontend-api.mjs
 ```
 
-The Gate backend must be running (see its own README) with `GET /event` and
-`GET /event/:id` reachable without a token.
-
-## Decisions made in this slice
-
-- **Caching**: `@tanstack/react-query` with a 30s `staleTime` on event reads
-  (`src/lib/queryClient.ts`) — events change on an organiser's schedule, not every
-  request, and ticket claims are a mutation, never cached.
-- **Public-only listing**: the backend's `GET /event` returns events in every lifecycle
-  status; `BrowseEventsPage` filters to `published` client-side so a draft or cancelled
-  event never surfaces to an anonymous visitor.
-- **Session storage**: JWT + refresh token + user kept in `localStorage` via
-  `AuthContext`, mirrored into the API client's in-memory bearer token on every change.
-
-## Integration work remaining
-
-Registration expects the session returned by Platform PR #9; deploy it only with that
-backend contract. The obsolete verification page and API calls have been removed.
-Public event visibility must be enforced by the backend; browser filtering is not
-access control. Ticket claiming still needs the reservation/payment endpoints in #25,
-and the staff page must replace device management with event membership and sync.
-Preview/mock behavior and session storage also need review before declaring full
-live API integration complete.
-
-The import preserves the application behavior. A successful static build alone does
-not establish that registration, ticket claims, or check-in work against the backend.
+The smoke script creates QA records and tests register, publish, anonymous browse,
+reserve, pay, tickets, cancel and live availability. It does not prove offline
+admission, restart recovery, worker execution or deployment.

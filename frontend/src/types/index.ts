@@ -1,7 +1,4 @@
-// Every type here mirrors a real column in Gate's Postgres schema (see the backend's
-// src/core/db/postgres/schema/*.ts) — no invented fields (no phoneNumber, profilePicture,
-// endDate, timezone, event-level capacity, or ticket ownerName/ownerEmail/code/qrCodeUrl),
-// since none of those exist on the actual tables.
+// API view models used by the browser.
 
 export type UserRole = "attendee" | "staff" | "admin";
 
@@ -33,7 +30,6 @@ export interface EventInventory {
 export interface GateEvent {
   id: string;
   name: string;
-  slug: string;
   description: string | null;
   venue: string | null;
   address: string | null;
@@ -42,7 +38,6 @@ export interface GateEvent {
   ticketPrice: number;
   currency: string;
   status: EventStatus;
-  createdBy: string;
   createdAt: string;
   updatedAt: string;
   // Public browse needs to show capacity/remaining, so the event read model embeds its
@@ -50,11 +45,13 @@ export interface GateEvent {
   inventory: EventInventory | null;
 }
 
-export type ReservationStatus = "pending" | "paid" | "expired" | "cancelled";
+export type ReservationStatus = "pending" | "payment_processing" | "paid" | "expired" | "cancelled";
 
 export interface TicketReservation {
+  ticketId: string | null;
+  paymentProcessingExpiresAt: string | null;
+  lastPayment: { status: "processing" | "succeeded" | "failed"; attemptedAt: string; updatedAt: string } | null;
   id: string;
-  userId: string;
   eventId: string;
   status: ReservationStatus;
   expiresAt: string;

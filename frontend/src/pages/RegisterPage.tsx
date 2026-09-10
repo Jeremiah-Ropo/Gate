@@ -31,19 +31,12 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="mx-auto max-w-sm px-4 py-14">
+    <div className="auth-panel">
       <h1 className="text-xl font-semibold text-neutral-900">Create an account</h1>
       <p className="mt-1 text-sm text-neutral-500">You need one to claim a ticket. Browsing never requires this.</p>
-      {import.meta.env.DEV && (
-        <p className="mt-2 text-xs text-neutral-400">
-          Registering only ever creates an attendee — there's no role field here on purpose.
-          Want to see the staff or admin UI? Use{" "}
-          <Link to="/login" className="underline">
-            Preview mode on the login page
-          </Link>
-          .
-        </p>
-      )}
+      <p className="mt-2 text-xs text-neutral-400">
+        Registration creates an attendee account. Staff access is assigned separately.
+      </p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div className="grid grid-cols-2 gap-3">
