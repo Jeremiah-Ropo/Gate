@@ -19,8 +19,41 @@ export interface ICheckInResult {
   ticketId: string | null;
 }
 
+/**
+ * What a door downloads when it starts a shift, and the only server contact it needs before
+ * it can admit anyone. Deliberately carries exceptions rather than the guest list: a valid
+ * signature for this event is itself proof of admissibility, so the manifest only has to name
+ * the tickets that are genuine but must not get in. That keeps it O(voids + scans) instead of
+ * O(attendees), and leaves the device holding nothing that could forge a ticket.
+ */
+export interface ICheckInSessionManifest {
+  eventId: string;
+  eventName: string;
+  // Base64-encoded PEM. Verifies signatures, cannot produce them.
+  publicKey: string;
+  issuedAt: string;
+  // Grows through the night. Refetching is how a door learns what other doors admitted.
+  checkedInTicketIds: string[];
+  blockedTicketIds: string[];
+}
+
+/**
+ * A synced batch, plus every ticket admitted for this event so far.
+ *
+ * The second field is how a door learns what other doors have done. A device decides
+ * admission locally, so its own list only covers scans it took; the manifest it downloaded
+ * at the start of the shift is frozen at that moment. Returning the current set on every
+ * sync is what keeps a door that has been open for hours from going green on a ticket
+ * somebody else already admitted.
+ */
+export interface ISyncCheckInResponse {
+  results: ICheckInResult[];
+  allCheckedInIds: string[];
+}
+
 export interface ICheckInService {
-  sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ICheckInResult[]>;
+  sync(scannedBy: string, eventId: string, payload: ISyncCheckInDTO): Promise<ISyncCheckInResponse>;
+  getSessionManifest(eventId: string): Promise<ICheckInSessionManifest>;
   listByTicket(ticketId: string): Promise<CheckIn[]>;
 }
 
@@ -28,6 +61,7 @@ export interface ICheckInRepository {
   withTx(tx: DbTransaction): ICheckInRepository;
   findByClientScanId(clientScanId: string): Promise<CheckIn | null>;
   findSuccessByTicket(ticketId: string): Promise<CheckIn | null>;
+  listSuccessTicketIdsByEvent(eventId: string): Promise<string[]>;
   create(data: NewCheckIn): Promise<CheckIn>;
   listByTicket(ticketId: string): Promise<CheckIn[]>;
 }

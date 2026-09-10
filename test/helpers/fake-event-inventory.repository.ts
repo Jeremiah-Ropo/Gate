@@ -57,6 +57,10 @@ export class FakeEventInventoryRepository implements IEventInventoryRepository {
     return null;
   }
 
+  async releaseReservedTickets(): Promise<EventInventory | null> {
+    return null;
+  }
+
   async setCapacity(): Promise<EventInventory | null> {
     return null;
   }

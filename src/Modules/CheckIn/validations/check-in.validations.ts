@@ -30,3 +30,13 @@ export const validateSyncCheckIn = async (req: Request, res: Response, next: Nex
 
   return next();
 };
+
+// The manifest route takes no body, so the uuid guard that validateSyncCheckIn does inline is
+// the whole of its validation. Kept separate rather than exported out of the middle of that
+// function so neither route can quietly change the other's contract.
+export const validateEventIdParam = async (req: Request, res: Response, next: NextFunction) => {
+  if (typeof req.params.eventId !== "string" || !validator.isUUID(req.params.eventId)) {
+    return next(new CustomError(422, "Validation", "eventId must be a valid uuid"));
+  }
+  return next();
+};

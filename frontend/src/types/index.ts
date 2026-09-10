@@ -75,13 +75,57 @@ export interface GateTicket {
   updatedAt: string;
 }
 
+// One row of GET /event-members/my-events: an event this user may work the door for.
+export interface DoorEvent {
+  eventId: string;
+  eventName: string;
+  startsAt: string;
+  venue: string | null;
+  role: "door_staff" | "organizer";
+  status: "active" | "revoked";
+}
+
+// GET /check-in/events/:eventId/session. Carries exceptions, never the guest list: anything
+// with a valid signature for this event is admissible, so only the tickets that are genuine
+// but must not get in have to travel.
+export interface DoorManifest {
+  eventId: string;
+  eventName: string;
+  // Base64-encoded PEM. Verifies signatures, cannot produce them.
+  publicKey: string;
+  issuedAt: string;
+  checkedInTicketIds: string[];
+  blockedTicketIds: string[];
+}
+
 export type CheckInStatus = "success" | "duplicate" | "invalid" | "denied";
+
+// What POST /check-in/events/:eventId/sync takes and returns.
+export interface OfflineScan {
+  clientScanId: string;
+  ticketCode: string;
+  scannedAt: string;
+}
+
+export interface ScanResult {
+  clientScanId: string;
+  status: CheckInStatus;
+  message: string;
+  ticketId: string | null;
+}
+
+// What the server sends back after a batch. allCheckedInIds is every ticket admitted for
+// this event so far, which is how one door hears about admissions made at another.
+export interface SyncResponse {
+  results: ScanResult[];
+  allCheckedInIds: string[];
+}
 
 export interface CheckIn {
   id: string;
   ticketId: string | null;
   scannedCode: string;
-  deviceId: string;
+  eventId: string;
   scannedBy: string | null;
   status: CheckInStatus;
   scannedAt: string;

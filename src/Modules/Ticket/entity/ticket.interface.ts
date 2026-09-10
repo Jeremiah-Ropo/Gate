@@ -1,14 +1,7 @@
 import type { DbTransaction } from "core/db/postgres";
 import { NewTicket, Ticket } from "./ticket.model";
 
-export interface IIssueTicketDTO {
-  eventId: string;
-  ownerName: string;
-  ownerEmail: string;
-}
-
 export interface ITicketService {
-  issueTicket(purchaserId: string, payload: IIssueTicketDTO): Promise<Ticket>;
   getById(id: string): Promise<Ticket>;
   getByCode(code: string): Promise<Ticket>;
   listMine(ownerId: string): Promise<Ticket[]>;
@@ -22,5 +15,6 @@ export interface ITicketRepository {
   findByCode(code: string): Promise<Ticket | null>;
   listByOwner(ownerId: string): Promise<Ticket[]>;
   countByEvent(eventId: string): Promise<number>;
+  listBlockedIdsByEvent(eventId: string): Promise<string[]>;
   update(id: string, data: Partial<NewTicket>): Promise<Ticket | null>;
 }

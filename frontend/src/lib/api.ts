@@ -1,6 +1,10 @@
 import type {
   AuthSession,
   CheckIn,
+  DoorEvent,
+  DoorManifest,
+  OfflineScan,
+  SyncResponse,
   TicketReservation,
   EventStatus,
   GateEvent,
@@ -197,7 +201,34 @@ export function uploadEventCoverImage(eventId: string, file: File): Promise<Gate
   });
 }
 
-// Check-in audit uses the staff account, not a device secret.
+// --- Check-in: staff/admin only. A door is a signed-in staff member with an active
+// membership for the event -- there is no device to register. ---
+
+// The events this user is actually on the door for, which is what the door picker lists.
+// Being staff is not the same as being on this event's door.
+export function listMyDoorEvents(): Promise<DoorEvent[]> {
+  return request<DoorEvent[]>("/event-members/my-events");
+}
+
+// Everything a door needs for a shift, fetched once. After this the device can decide
+// admission on its own: the public key proves a ticket is genuine, and the two id lists
+// cover the cases a signature cannot, because both describe things that changed after the
+// ticket was signed.
+export function getDoorSession(eventId: string): Promise<DoorManifest> {
+  return request<DoorManifest>(`/check-in/events/${eventId}/session`);
+}
+
+// A batch of scans the door already decided on. Idempotency-Key so a retry after a dropped
+// connection is free, and each scan carries its own clientScanId so the server can recognise
+// one it has already recorded even if the whole batch is resent.
+export function syncScans(eventId: string, scans: OfflineScan[]): Promise<SyncResponse> {
+  return request<SyncResponse>(`/check-in/events/${eventId}/sync`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify({ scans }),
+  });
+}
+
 export function getCheckInsForTicket(ticketId: string): Promise<CheckIn[]> {
   return request<CheckIn[]>(`/check-in/ticket/${ticketId}`);
 }
