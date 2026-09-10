@@ -32,7 +32,7 @@ services:
     maxShutdownDelaySeconds: 30
     envVars:
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
@@ -77,7 +77,7 @@ services:
     maxShutdownDelaySeconds: 60
     envVars:
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: NODE_ENV
         value: production
       - key: PRIVATE_CHECKIN_KEY
