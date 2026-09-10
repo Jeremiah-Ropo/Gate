@@ -31,20 +31,37 @@ function EventCheckout({ eventId }: { eventId: string }) {
     refetchInterval: (query) =>
       ["pending", "payment_processing"].includes(query.state.data?.status ?? "") ? 5000 : false,
   });
-  const refresh = () => {
-    void cache.invalidateQueries({ queryKey: ["reservation"] });
-    void cache.invalidateQueries({ queryKey: ["events"] });
+  const refreshInventory = () => {
+    void cache.invalidateQueries({ queryKey: ["events", eventId] });
     void cache.invalidateQueries({ queryKey: ["tickets"] });
+  };
+  const refreshReservation = () => {
+    void cache.invalidateQueries({ queryKey: ["reservation", user?.id, reservationId] });
   };
   const reserve = useMutation({
     mutationFn: () => client.createReservation(eventId, claimKey),
     onSuccess: (result) => {
       setParams({ reservation: result.id });
-      refresh();
+      cache.setQueryData(["reservation", user?.id, result.id], result);
+      refreshInventory();
     },
   });
-  const pay = useMutation({ mutationFn: () => client.payReservation(reservationId!, outcome), onSettled: refresh });
-  const cancel = useMutation({ mutationFn: () => client.cancelReservation(reservationId!), onSettled: refresh });
+  const pay = useMutation({
+    mutationFn: () => client.payReservation(reservationId!, outcome),
+    onSuccess: (result) => {
+      cache.setQueryData(["reservation", user?.id, reservationId], result);
+      refreshInventory();
+    },
+    onSettled: refreshReservation,
+  });
+  const cancel = useMutation({
+    mutationFn: () => client.cancelReservation(reservationId!),
+    onSuccess: (result) => {
+      cache.setQueryData(["reservation", user?.id, reservationId], result);
+      pay.reset();
+      refreshInventory();
+    },
+  });
   const active = reservation.data;
   const matchingEvent = active?.eventId === eventId;
   const expired = active ? Date.parse(active.expiresAt) <= reservation.dataUpdatedAt : false;
@@ -113,7 +130,7 @@ function EventCheckout({ eventId }: { eventId: string }) {
             </Link>
           )}
           {reservationId && reservation.isPending && isAuthenticated && <LoadingState label="Loading reservation…" />}
-          {reservation.isError && <ErrorState message={errorMessage(reservation.error)} />}
+          {reservation.isError && !active && <ErrorState message={errorMessage(reservation.error)} />}
           {active && !matchingEvent && <ErrorState message="This reservation belongs to another event." />}
           {active && matchingEvent && (
             <section className="mt-6 space-y-4 border-t border-neutral-200 pt-5">
@@ -191,7 +208,7 @@ function EventCheckout({ eventId }: { eventId: string }) {
               </button>
             </section>
           )}
-          {pay.isError && <ErrorState message={errorMessage(pay.error)} />}
+          {pay.isError && active?.status === "pending" && <ErrorState message={errorMessage(pay.error)} />}
           {cancel.isError && <ErrorState message={errorMessage(cancel.error)} />}
         </aside>
       </div>

@@ -70,7 +70,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers.set("Authorization", `Bearer ${authToken}`);
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  // no-store avoids Express ETag 304 responses with empty bodies, which fetch cannot parse.
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers, cache: "no-store" });
   const body = (await res.json().catch(() => null)) as SuccessEnvelope<T> | ErrorEnvelope | null;
 
   if (!res.ok || !body || body.success === false) {

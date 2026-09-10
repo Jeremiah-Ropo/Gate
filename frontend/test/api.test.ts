@@ -56,6 +56,15 @@ describe("api", () => {
     expect((await payReservation("hold", "slow")).status).toBe("payment_processing");
   });
 
+  test("uses no-store so Express ETag 304 responses do not break JSON parsing", async () => {
+    globalThis.fetch = vi.fn(async (_url, init) => {
+      expect(init?.cache).toBe("no-store");
+      return respond([]);
+    }) as typeof fetch;
+
+    await listEvents();
+  });
+
   test("event creation uses the transactional publish endpoint", async () => {
     globalThis.fetch = vi.fn(async (url) => {
       expect(String(url).endsWith("/event/publish")).toBe(true);
