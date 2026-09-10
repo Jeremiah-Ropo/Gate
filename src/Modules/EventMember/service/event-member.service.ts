@@ -7,6 +7,7 @@ import eventRepository from "Modules/Event/repository/event.repository";
 import { IUserRepository } from "Modules/User/entity/user.interface";
 import userRepository from "Modules/User/repository/user.repository";
 import eventMemberRepository from "../repository/event-member.repository";
+import { toPublicUser } from "Modules/User/entity/user.view";
 import {
   IAddMemberDTO,
   IEventMemberRepository,
@@ -15,6 +16,7 @@ import {
   IRequester,
 } from "../entity/event-member.interface";
 import { EventMember } from "../entity/event-member.model";
+import { EventMemberWithUser } from "../entity/event-member.view";
 
 @Service()
 export class EventMemberService implements IEventMemberService {
@@ -57,12 +59,24 @@ export class EventMemberService implements IEventMemberService {
     return event;
   }
 
-  async addMember(eventId: string, requester: IRequester, payload: IAddMemberDTO): Promise<EventMember> {
+  private toMemberWithUser(member: EventMember, user: NonNullable<Awaited<ReturnType<IUserRepository["findById"]>>>): EventMemberWithUser {
+    return { ...member, user: toPublicUser(user) };
+  }
+
+  async addMember(eventId: string, requester: IRequester, payload: IAddMemberDTO): Promise<EventMemberWithUser> {
     await this.assertManagesEvent(eventId, requester);
 
     const user = await this.users.findById(payload.userId);
     if (!user) {
       throw new CustomError(404, "NotFound", "User not found");
+    }
+
+    // Door routes require a global staff role. Event membership alone is not enough to
+    // reach check-in, so promote attendees when an organizer puts them on a door.
+    let currentUser = user;
+    if (user.role === ERole.ATTENDEE) {
+      const promoted = await this.users.update(user.id, { role: ERole.STAFF });
+      if (promoted) currentUser = promoted;
     }
 
     const role = payload.role ?? EEventMemberRole.DOOR_STAFF;
@@ -79,34 +93,40 @@ export class EventMemberService implements IEventMemberService {
       if (!updated) {
         throw new CustomError(400, "BadRequest", "Membership not updated");
       }
-      return updated;
+      return this.toMemberWithUser(updated, currentUser);
     }
 
     // Active on creation. There is no invite to accept: an organizer assigning someone to
     // a door is a shift assignment, and the membership is usable immediately.
-    return this.repository.create({
+    const created = await this.repository.create({
       eventId,
       userId: payload.userId,
       role,
       status: EMembershipStatus.ACTIVE,
     });
+    return this.toMemberWithUser(created, currentUser);
   }
 
-  async listForEvent(eventId: string, requester: IRequester): Promise<EventMember[]> {
+  async listForEvent(eventId: string, requester: IRequester) {
     await this.assertManagesEvent(eventId, requester);
-    return this.repository.listByEvent(eventId);
+    return this.repository.listByEventWithUsers(eventId);
   }
 
   async listMyEvents(userId: string): Promise<IMyEventRow[]> {
     return this.repository.listActiveEventsForUser(userId);
   }
 
-  async revoke(eventId: string, userId: string, requester: IRequester): Promise<EventMember> {
+  async revoke(eventId: string, userId: string, requester: IRequester): Promise<EventMemberWithUser> {
     await this.assertManagesEvent(eventId, requester);
 
     const member = await this.repository.findByEventAndUser(eventId, userId);
     if (!member) {
       throw new CustomError(404, "NotFound", "This user is not a member of this event");
+    }
+
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new CustomError(404, "NotFound", "User not found");
     }
 
     // Revocation sets a status rather than deleting the row, so the scan log keeps a
@@ -115,7 +135,7 @@ export class EventMemberService implements IEventMemberService {
     if (!updated) {
       throw new CustomError(400, "BadRequest", "Membership not updated");
     }
-    return updated;
+    return this.toMemberWithUser(updated, user);
   }
 
   async isActiveMember(eventId: string, userId: string): Promise<boolean> {

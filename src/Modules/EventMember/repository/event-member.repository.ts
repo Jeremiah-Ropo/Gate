@@ -3,8 +3,11 @@ import { and, desc, eq } from "drizzle-orm";
 import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { EMembershipStatus } from "core/global/entities/enums";
 import { EventTable } from "Modules/Event/entity/event.model";
+import { UserTable } from "Modules/User/entity/user.model";
+import { toPublicUser } from "Modules/User/entity/user.view";
 import { IEventMemberRepository, IMyEventRow } from "../entity/event-member.interface";
 import { EventMember, EventMemberTable, NewEventMember } from "../entity/event-member.model";
+import { EventMemberWithUser } from "../entity/event-member.view";
 
 class EventMemberRepository implements IEventMemberRepository {
   private static instance: IEventMemberRepository;
@@ -51,6 +54,35 @@ class EventMemberRepository implements IEventMemberRepository {
       .from(EventMemberTable)
       .where(eq(EventMemberTable.eventId, eventId))
       .orderBy(desc(EventMemberTable.createdAt));
+  }
+
+  async listByEventWithUsers(eventId: string): Promise<EventMemberWithUser[]> {
+    const rows = await this.db
+      .select({
+        id: EventMemberTable.id,
+        eventId: EventMemberTable.eventId,
+        userId: EventMemberTable.userId,
+        role: EventMemberTable.role,
+        status: EventMemberTable.status,
+        createdAt: EventMemberTable.createdAt,
+        updatedAt: EventMemberTable.updatedAt,
+        user: UserTable,
+      })
+      .from(EventMemberTable)
+      .innerJoin(UserTable, eq(UserTable.id, EventMemberTable.userId))
+      .where(eq(EventMemberTable.eventId, eventId))
+      .orderBy(desc(EventMemberTable.createdAt));
+
+    return rows.map((row) => ({
+      id: row.id,
+      eventId: row.eventId,
+      userId: row.userId,
+      role: row.role,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      user: toPublicUser(row.user),
+    }));
   }
 
   // Joined rather than returning bare memberships: a door staff member picking an event

@@ -6,7 +6,7 @@ import { ErrorState, LoadingState } from "@/components/StatusMessage";
 import { errorMessage } from "@/lib/api";
 import { queryKeys } from "@/lib/queryClient";
 import { useGateClient } from "@/lib/useGateClient";
-import type { EventStatus, GateEvent } from "@/types";
+import type { EventMemberWithUser, EventStatus, GateEvent, GateUser } from "@/types";
 
 function toDatetimeLocal(iso: string): string {
   const d = new Date(iso);
@@ -252,6 +252,175 @@ function EventFormFields({
           {mutation.isPending ? "Saving…" : isEditing ? "Save changes" : "Publish event"}
         </button>
       </form>
+
+      {isEditing && eventId && <EventDoorStaffSection eventId={eventId} />}
     </div>
+  );
+}
+
+function EventDoorStaffSection({ eventId }: { eventId: string }) {
+  const client = useGateClient();
+  const queryClient = useQueryClient();
+  const [email, setEmail] = useState("");
+  const [searchResults, setSearchResults] = useState<GateUser[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const membersQuery = useQuery({
+    queryKey: ["event-members", eventId],
+    queryFn: () => client.listEventMembers(eventId),
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (userId: string) => client.addEventMember(eventId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event-members", eventId] });
+      setEmail("");
+      setSearchResults([]);
+      setSearchError(null);
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (userId: string) => client.revokeEventMember(eventId, userId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event-members", eventId] }),
+  });
+
+  const handleSearch = async () => {
+    setSearchError(null);
+    setSearchResults([]);
+    try {
+      const results = await client.searchUsers(email.trim());
+      if (results.length === 0) {
+        setSearchError("No account found with that email.");
+        return;
+      }
+      setSearchResults(results);
+    } catch (err) {
+      setSearchError(errorMessage(err));
+    }
+  };
+
+  const members = membersQuery.data ?? [];
+  const activeMembers = members.filter((m) => m.status === "active");
+
+  return (
+    <section className="mt-10">
+      <h2 className="text-2xl font-semibold text-neutral-900">Door staff</h2>
+      <p className="mt-1 text-sm text-neutral-500">
+        Assign people to check in guests at this event. Attendees are promoted to staff automatically.
+      </p>
+
+      {membersQuery.isPending && <LoadingState label="Loading door staff…" />}
+      {membersQuery.isError && <ErrorState message={errorMessage(membersQuery.error)} />}
+
+      {activeMembers.length > 0 && (
+        <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+          <table className="w-full min-w-[500px] text-left text-sm">
+            <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+              <tr>
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Role</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {activeMembers.map((member) => (
+                <DoorStaffRow
+                  key={member.id}
+                  member={member}
+                  onRevoke={() => revokeMutation.mutate(member.userId)}
+                  isRevoking={revokeMutation.isPending}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!membersQuery.isPending && activeMembers.length === 0 && (
+        <p className="mt-4 text-sm text-neutral-500">No door staff assigned yet.</p>
+      )}
+
+      <div className="booking-panel mt-6 space-y-4">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor="staff-email">
+            Find by email
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="staff-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="person@example.com"
+              className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={email.trim().length < 3}
+              className="shrink-0 rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              Search
+            </button>
+          </div>
+        </div>
+
+        {searchError && <ErrorState message={searchError} />}
+        {addMutation.isError && <ErrorState message={errorMessage(addMutation.error)} />}
+
+        {searchResults.length > 0 && (
+          <ul className="divide-y divide-neutral-100 rounded-md border border-neutral-200">
+            {searchResults.map((user) => (
+              <li key={user.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <span>
+                  {user.firstName} {user.lastName}{" "}
+                  <span className="text-neutral-500">({user.email})</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => addMutation.mutate(user.id)}
+                  disabled={addMutation.isPending}
+                  className="shrink-0 rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
+                >
+                  {addMutation.isPending ? "Adding…" : "Add to door"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DoorStaffRow({
+  member,
+  onRevoke,
+  isRevoking,
+}: {
+  member: EventMemberWithUser;
+  onRevoke: () => void;
+  isRevoking: boolean;
+}) {
+  return (
+    <tr>
+      <td className="px-4 py-3 font-medium text-neutral-900">
+        {member.user.firstName} {member.user.lastName}
+      </td>
+      <td className="px-4 py-3 text-neutral-600">{member.user.email}</td>
+      <td className="px-4 py-3 text-neutral-600">{member.role.replace("_", " ")}</td>
+      <td className="px-4 py-3 text-right">
+        <button
+          type="button"
+          onClick={onRevoke}
+          disabled={isRevoking}
+          className="text-sm font-medium text-red-600 hover:underline disabled:opacity-50"
+        >
+          Remove
+        </button>
+      </td>
+    </tr>
   );
 }

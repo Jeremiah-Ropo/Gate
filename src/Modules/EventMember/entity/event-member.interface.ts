@@ -1,6 +1,7 @@
 import { type DbTransaction } from "core/db/postgres";
 import { EEventMemberRole } from "core/global/entities/enums";
 import { EventMember, NewEventMember } from "./event-member.model";
+import { EventMemberWithUser } from "./event-member.view";
 
 export interface IAddMemberDTO {
   userId: string;
@@ -30,10 +31,10 @@ export interface IMyEventRow {
 }
 
 export interface IEventMemberService {
-  addMember(eventId: string, requester: IRequester, payload: IAddMemberDTO): Promise<EventMember>;
-  listForEvent(eventId: string, requester: IRequester): Promise<EventMember[]>;
+  addMember(eventId: string, requester: IRequester, payload: IAddMemberDTO): Promise<EventMemberWithUser>;
+  listForEvent(eventId: string, requester: IRequester): Promise<EventMemberWithUser[]>;
   listMyEvents(userId: string): Promise<IMyEventRow[]>;
-  revoke(eventId: string, userId: string, requester: IRequester): Promise<EventMember>;
+  revoke(eventId: string, userId: string, requester: IRequester): Promise<EventMemberWithUser>;
   isActiveMember(eventId: string, userId: string): Promise<boolean>;
 }
 
@@ -43,6 +44,7 @@ export interface IEventMemberRepository {
   findById(id: string): Promise<EventMember | null>;
   findByEventAndUser(eventId: string, userId: string): Promise<EventMember | null>;
   listByEvent(eventId: string): Promise<EventMember[]>;
+  listByEventWithUsers(eventId: string): Promise<EventMemberWithUser[]>;
   listActiveEventsForUser(userId: string): Promise<IMyEventRow[]>;
   update(id: string, data: Partial<NewEventMember>): Promise<EventMember | null>;
 }

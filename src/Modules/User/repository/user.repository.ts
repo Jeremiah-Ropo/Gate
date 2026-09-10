@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ilike } from "drizzle-orm";
 
 import { getDb, type DbExecutor, type DbTransaction } from "core/db/postgres";
 import { IUserRepository } from "../entity/user.interface";
@@ -37,6 +37,14 @@ class UserRepository implements IUserRepository {
   async findByEmail(email: string): Promise<User | null> {
     const [user] = await this.db.select().from(UserTable).where(eq(UserTable.email, email)).limit(1);
     return user ?? null;
+  }
+
+  async searchByEmail(query: string, limit = 20): Promise<User[]> {
+    return this.db
+      .select()
+      .from(UserTable)
+      .where(ilike(UserTable.email, `%${query}%`))
+      .limit(limit);
   }
 
   async clearSession(id: string, expectedSession: string): Promise<void> {

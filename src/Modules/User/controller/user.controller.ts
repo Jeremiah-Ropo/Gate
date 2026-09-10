@@ -21,6 +21,16 @@ class UserController {
     }
   }
 
+  public static async searchUsers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const email = String(req.query.email ?? "");
+      const users = await UserService.searchByEmail(email);
+      res.customSuccess(200, "Users retrieved successfully", users);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
       const { currentPassword, newPassword } = req.body;

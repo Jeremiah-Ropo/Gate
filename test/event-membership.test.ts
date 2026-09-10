@@ -33,6 +33,21 @@ function buildService(overrides: { existing?: EventMember | null } = {}) {
   let created: any;
   let updated: any;
 
+  const memberRow = membership(EMembershipStatus.ACTIVE);
+  const memberWithUser = () => ({
+    ...memberRow,
+    user: {
+      id: DOOR_STAFF,
+      firstName: "Door",
+      lastName: "Staff",
+      email: "door@example.com",
+      role: ERole.STAFF,
+      isVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+
   const members = {
     withTx: () => members,
     create: async (data: any) => {
@@ -42,6 +57,7 @@ function buildService(overrides: { existing?: EventMember | null } = {}) {
     findById: notImplemented,
     findByEventAndUser: async () => overrides.existing ?? null,
     listByEvent: async () => [membership(EMembershipStatus.ACTIVE)],
+    listByEventWithUsers: async () => [memberWithUser()],
     listActiveEventsForUser: notImplemented,
     update: async (_id: string, data: any) => {
       updated = data;
@@ -50,7 +66,10 @@ function buildService(overrides: { existing?: EventMember | null } = {}) {
   } as any;
 
   const events = { findById: async () => event } as any;
-  const users = { findById: async () => user } as any;
+  const users = {
+    findById: async () => user,
+    update: async (_id: string, data: any) => ({ ...user, ...data }),
+  } as any;
 
   return {
     service: new EventMemberService(members, events, users),
@@ -128,6 +147,34 @@ describe("Event membership authorization", () => {
       await ctx.service.addMember(EVENT_ID, admin, { userId: DOOR_STAFF });
 
       expect(ctx.created).to.include({ eventId: EVENT_ID, userId: DOOR_STAFF });
+    });
+  });
+
+  describe("promoting attendees", () => {
+    it("promotes an attendee to staff when they are added to a door", async () => {
+      const attendee = { id: DOOR_STAFF, role: ERole.ATTENDEE } as any;
+      let promotedRole: string | undefined;
+
+      const members = {
+        withTx: () => members,
+        create: async () => membership(EMembershipStatus.ACTIVE),
+        findByEventAndUser: async () => null,
+        update: notImplemented,
+      } as any;
+      const events = { findById: async () => event } as any;
+      const users = {
+        findById: async () => attendee,
+        update: async (_id: string, data: any) => {
+          promotedRole = data.role;
+          return { ...attendee, ...data };
+        },
+      } as any;
+
+      await new EventMemberService(members, events, users).addMember(EVENT_ID, organizer, {
+        userId: DOOR_STAFF,
+      });
+
+      expect(promotedRole).to.equal(ERole.STAFF);
     });
   });
 

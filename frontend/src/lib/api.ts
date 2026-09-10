@@ -3,6 +3,7 @@ import type {
   CheckIn,
   DoorEvent,
   DoorManifest,
+  EventMemberWithUser,
   OfflineScan,
   SyncResponse,
   TicketReservation,
@@ -129,6 +130,10 @@ export function getMe(): Promise<GateUser> {
   return request<GateUser>("/user/me");
 }
 
+export function searchUsers(email: string): Promise<GateUser[]> {
+  return request<GateUser[]>(`/user/search?email=${encodeURIComponent(email)}`);
+}
+
 // Reservations are the only issuance path. The server owns payment state.
 export function createReservation(eventId: string, idempotencyKey: string): Promise<TicketReservation> {
   return request("/reservations", { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ eventId }) });
@@ -199,6 +204,25 @@ export function uploadEventCoverImage(eventId: string, file: File): Promise<Gate
   return request<GateEvent>(`/event/${eventId}/cover-image`, {
     method: "POST",
     body: form,
+  });
+}
+
+// --- Event door staff: organizers assign people to work a specific event's door. ---
+
+export function listEventMembers(eventId: string): Promise<EventMemberWithUser[]> {
+  return request<EventMemberWithUser[]>(`/event-members/events/${eventId}`);
+}
+
+export function addEventMember(eventId: string, userId: string): Promise<EventMemberWithUser> {
+  return request<EventMemberWithUser>(`/event-members/events/${eventId}`, {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export function revokeEventMember(eventId: string, userId: string): Promise<EventMemberWithUser> {
+  return request<EventMemberWithUser>(`/event-members/events/${eventId}/users/${userId}`, {
+    method: "DELETE",
   });
 }
 

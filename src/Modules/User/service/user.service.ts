@@ -19,6 +19,11 @@ class UserService {
     return toPublicUser(this.requireUser(await userRepository.findByEmail(email)));
   }
 
+  async searchByEmail(query: string): Promise<PublicUser[]> {
+    const users = await userRepository.searchByEmail(query.trim().toLowerCase());
+    return users.map(toPublicUser);
+  }
+
   async updateUser(userId: string, data: IUpdateUserDTO): Promise<PublicUser> {
     const changes: IUpdateUserDTO = {};
     if (data.firstName !== undefined) changes.firstName = data.firstName.trim();

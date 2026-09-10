@@ -19,6 +19,7 @@ export interface IUpdateUserDTO {
 export interface IUserService {
   findById(id: string): Promise<PublicUser>;
   findByEmail(email: string): Promise<PublicUser>;
+  searchByEmail(query: string): Promise<PublicUser[]>;
   updateUser(userId: string, data: IUpdateUserDTO): Promise<PublicUser>;
   changePassword(id: string, oldPassword: string, newPassword: string): Promise<PublicUser>;
 }
@@ -28,6 +29,7 @@ export interface IUserRepository {
   create(data: NewUser): Promise<User>;
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
+  searchByEmail(query: string, limit?: number): Promise<User[]>;
   update(id: string, data: Partial<NewUser>): Promise<User | null>;
   clearSession(id: string, expectedSession: string): Promise<void>;
 }

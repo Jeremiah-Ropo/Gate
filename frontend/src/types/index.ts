@@ -75,6 +75,21 @@ export interface GateTicket {
   updatedAt: string;
 }
 
+export type EventMemberRole = "door_staff" | "organizer";
+export type MembershipStatus = "active" | "revoked";
+
+// GET /event-members/events/:eventId — who is assigned to work this event's door.
+export interface EventMemberWithUser {
+  id: string;
+  eventId: string;
+  userId: string;
+  role: EventMemberRole;
+  status: MembershipStatus;
+  createdAt: string;
+  updatedAt: string;
+  user: GateUser;
+}
+
 // One row of GET /event-members/my-events: an event this user may work the door for.
 export interface DoorEvent {
   eventId: string;
