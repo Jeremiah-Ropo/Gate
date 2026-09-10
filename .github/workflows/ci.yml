@@ -46,6 +46,8 @@ jobs:
       - run: yarn db:migrate
       - run: yarn test
       - run: yarn build
+      - name: Generate ephemeral ticket-signing keys
+        run: node scripts/setup.mjs make:ticket-keys | grep -E '^(PRIVATE_CHECKIN_KEY|PUBLIC_CHECKIN_KEY)=' >> "$GITHUB_ENV"
       - name: Smoke-test the real API against PostgreSQL and Redis
         run: |
           PORT=3001 node dist/index.js > /tmp/gate-ci-api.log 2>&1 &
