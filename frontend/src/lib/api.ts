@@ -73,11 +73,11 @@ export function errorMessage(err: unknown): string {
 // --- Public browse: no auth required ---
 
 export function listEvents(): Promise<GateEvent[]> {
-  return request<GateEvent[]>("/event");
+  return request<GateEvent[]>("/events");
 }
 
 export function getEvent(eventId: string): Promise<GateEvent> {
-  return request<GateEvent>(`/event/${eventId}`);
+  return request<GateEvent>(`/events/${eventId}`);
 }
 
 // --- Auth: required to move past browsing into claiming a ticket. Every self-registered
