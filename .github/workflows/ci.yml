@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: gate_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres@127.0.0.1:5432/gate_test
+      REDIS_CONNECTION_STRING: redis://127.0.0.1:6379
+      GATE_REVIEW_DB: "true"
+      PAYMENT_PROVIDER_TIMEOUT_MS: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn format-lint
+      - run: yarn lint
+      - run: yarn db:migrate
+      - run: yarn test
+      - run: yarn build
+      - name: Generate ephemeral ticket-signing keys
+        run: node scripts/setup.mjs make:ticket-keys | grep -E '^(PRIVATE_CHECKIN_KEY|PUBLIC_CHECKIN_KEY)=' >> "$GITHUB_ENV"
+      - name: Smoke-test the real API against PostgreSQL and Redis
+        run: |
+          PORT=3001 node dist/index.js > /tmp/gate-ci-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in {1..30}; do
+            if curl -fsS http://localhost:3001/health/ready; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/gate-ci-api.log; exit 1; fi
+          node scripts/smoke-frontend-api.mjs
+      - name: Smoke-test worker cache invalidation and shutdown
+        run: node scripts/smoke-worker.mjs
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn test
+      - run: yarn build

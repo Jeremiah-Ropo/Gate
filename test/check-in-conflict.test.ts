@@ -69,7 +69,9 @@ describe("Check-in success conflict", () => {
     );
     const ctx = buildService({ failCreateOnce: error });
     const submitted = scan();
-    const { results: [result] } = await ctx.service.sync(SCANNED_BY, EVENT_ID, { scans: [submitted] });
+    const {
+      results: [result],
+    } = await ctx.service.sync(SCANNED_BY, EVENT_ID, { scans: [submitted] });
     expect(result.status).to.equal(ECheckInStatus.DUPLICATE);
     expect(ctx.written[0].clientScanId).to.equal(submitted.clientScanId);
   });
@@ -88,7 +90,9 @@ describe("Check-in success conflict", () => {
   it("records a duplicate when it loses the race for the success row", async () => {
     const ctx = buildService({ failCreateOnce: uniqueViolation("check_ins_one_success_per_ticket") });
 
-    const { results: [result] } = await ctx.service.sync(SCANNED_BY, EVENT_ID, { scans: [scan()] });
+    const {
+      results: [result],
+    } = await ctx.service.sync(SCANNED_BY, EVENT_ID, { scans: [scan()] });
 
     expect(result.status).to.equal(ECheckInStatus.DUPLICATE);
     expect(result.ticketId).to.equal(TICKET_ID);
@@ -142,7 +146,9 @@ describe("Check-in success conflict", () => {
   it("records a success when it wins the race", async () => {
     const ctx = buildService();
 
-    const { results: [result] } = await ctx.service.sync(SCANNED_BY, EVENT_ID, { scans: [scan()] });
+    const {
+      results: [result],
+    } = await ctx.service.sync(SCANNED_BY, EVENT_ID, { scans: [scan()] });
 
     expect(result.status).to.equal(ECheckInStatus.SUCCESS);
     expect(ctx.written[0]).to.include({ status: ECheckInStatus.SUCCESS });
