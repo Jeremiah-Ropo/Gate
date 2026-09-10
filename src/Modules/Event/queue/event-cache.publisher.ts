@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 
 import queueManager from "core/global/shared/queue/queue-manager";
+import { getRequestId } from "core/global/utils/request-context";
 import {
   EVENT_CACHE_INVALIDATE,
   EVENT_CACHE_QUEUE,
@@ -20,9 +21,7 @@ export default class EventCachePublisher {
       version: 1,
       eventId,
       reason,
-      // Until Platform threads a request-scoped correlation id through, this at least ties the
-      // job's own log lines together.
-      correlationId: randomUUID(),
+      correlationId: getRequestId() ?? randomUUID(),
       committedAt: new Date().toISOString(),
     };
 

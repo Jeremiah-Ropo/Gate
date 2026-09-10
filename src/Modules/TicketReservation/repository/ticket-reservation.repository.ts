@@ -96,6 +96,14 @@ class TicketReservationRepository implements ITicketReservationRepository {
     return reservation ?? null;
   }
 
+  async countOverduePending(): Promise<number> {
+    const [row] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(TicketReservationTable)
+      .where(and(eq(TicketReservationTable.status, "pending"), lte(TicketReservationTable.expiresAt, sql`now()`)));
+    return row?.count ?? 0;
+  }
+
   async expireOverduePending(limit: number, maxEvents: number): Promise<TicketReservation[]> {
     const eventBatch = this.db.$with("reservation_expiry_events").as(
       this.db

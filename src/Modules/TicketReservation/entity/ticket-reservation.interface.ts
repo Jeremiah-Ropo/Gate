@@ -68,6 +68,7 @@ export interface ITicketReservationRepository {
   findById(id: string): Promise<TicketReservationWithDetails | null>;
   findByIdForUser(id: string, userId: string): Promise<TicketReservationWithDetails | null>;
   findUnexpiredPendingByIdForUser(id: string, userId: string): Promise<TicketReservationWithDetails | null>;
+  countOverduePending(): Promise<number>;
   expireOverduePending(limit: number, maxEvents: number): Promise<TicketReservation[]>;
   cancelPending(id: string, userId: string, cancelledAt: Date): Promise<TicketReservation | null>;
   markPaymentProcessing(

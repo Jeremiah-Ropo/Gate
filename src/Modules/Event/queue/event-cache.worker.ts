@@ -20,7 +20,13 @@ export const startEventCacheWorker = (): Worker => {
       }
       await eventCache.invalidateEvent(job.data.eventId);
       logger.info(
-        `[EventCache] invalidated event ${job.data.eventId} after ${job.data.reason} (correlationId=${job.data.correlationId})`,
+        {
+          eventId: job.data.eventId,
+          reason: job.data.reason,
+          correlationId: job.data.correlationId,
+          jobId: job.id,
+        },
+        "Event cache invalidated",
       );
     },
     { connection: queueManager.connection },

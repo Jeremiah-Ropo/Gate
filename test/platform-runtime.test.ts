@@ -40,6 +40,20 @@ describe("Platform API runtime", () => {
     expect(response.body).to.deep.equal({ status: "ready", service: "api" });
   });
 
+  it("returns the documented metrics snapshot shape", async () => {
+    const app = createApp({ readinessCheck: async () => undefined, setupRouters: () => undefined });
+
+    const response = await request(app).get("/health/metrics");
+
+    expect(response.status).to.equal(200);
+    expect(response.body.service).to.equal("api");
+    expect(response.body.http).to.include.keys("requests", "errors", "status401", "status403", "status429");
+    expect(response.body.queues).to.have.keys("event-cache-queue", "ticket-reservation-maintenance");
+    expect(response.body.queues["event-cache-queue"]).to.include.keys("waiting", "active", "delayed", "failed");
+    expect(response.body.worker).to.include.keys("heartbeatAt", "jobsCompleted", "jobsFailed");
+    expect(response.body.reservations).to.include.keys("overduePending");
+  });
+
   it("returns 503 without leaking dependency errors when readiness fails", async () => {
     const app = createApp({
       readinessCheck: async () => {

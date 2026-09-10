@@ -15,8 +15,11 @@ import RedisManager from "core/db/redis";
 import "core/global/handler/response.handler";
 import { errorHandler } from "core/global/middlewares/error-handler.middleware";
 import notFound from "core/global/middlewares/not-found.middleware";
+import { requestContextMiddleware } from "core/global/middlewares/request-context.middleware";
 import { corsMiddleware } from "core/global/utils/cors-options";
 import logger from "core/global/utils/logger";
+import { collectPlatformMetrics } from "core/global/utils/platform-metrics";
+import { getRequestContext } from "core/global/utils/request-context";
 import "core/providers/cloud-storage";
 import queueManager from "./global/shared/queue/queue-manager";
 import { SetupRouters } from "./Routers";
@@ -34,13 +37,18 @@ const checkReadiness: ReadinessCheck = async () => {
 };
 
 const setupMiddleware = (app: Application): void => {
+  app.use(requestContextMiddleware);
   app.use(
     pinoHttp({
       logger,
-      genReqId: (_req, res) => {
-        const id = randomUUID();
-        res.setHeader("X-Request-Id", id);
-        return id;
+      genReqId: () => getRequestContext()?.requestId ?? randomUUID(),
+      customProps: () => {
+        const context = getRequestContext();
+        return {
+          requestId: context?.requestId,
+          ...(context?.actorId ? { actorId: context.actorId } : {}),
+          ...(context?.actorRole ? { actorRole: context.actorRole } : {}),
+        };
       },
       serializers: {
         req: (req) => ({ id: req.id, method: req.method, path: req.url?.split("?")[0] }),
@@ -71,6 +79,16 @@ const setupMiddleware = (app: Application): void => {
 const setupHealthChecks = (app: Application, readinessCheck: ReadinessCheck): void => {
   app.get("/health/live", (_req: Request, res: Response) => {
     res.status(200).json({ status: "ok", service: "api" });
+  });
+
+  app.get("/health/metrics", async (_req: Request, res: Response) => {
+    try {
+      const metrics = await collectPlatformMetrics();
+      res.status(200).json(metrics);
+    } catch (error) {
+      logger.warn({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Metrics snapshot failed");
+      res.status(503).json({ status: "metrics_unavailable", service: "api" });
+    }
   });
 
   app.get("/health/ready", async (_req: Request, res: Response) => {

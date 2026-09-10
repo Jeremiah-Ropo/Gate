@@ -1,6 +1,7 @@
 import { expect } from "chai";
 
 import queueManager from "core/global/shared/queue/queue-manager";
+import { runWithRequestContext } from "core/global/utils/request-context";
 import EventCachePublisher from "Modules/Event/queue/event-cache.publisher";
 import { EVENT_CACHE_INVALIDATE, EVENT_CACHE_QUEUE } from "Modules/Event/queue/event-cache.entity";
 
@@ -65,6 +66,14 @@ describe("EventCachePublisher", () => {
     }
     // Different commits must not collide.
     expect(added[0].opts.jobId.startsWith(`${EVENT_CACHE_INVALIDATE}-${EVENT_ID}-`)).to.equal(true);
+  });
+
+  it("copies the active HTTP request id onto correlationId when one exists", async () => {
+    await runWithRequestContext({ requestId: "11111111-1111-4111-8111-111111111111" }, async () => {
+      await new EventCachePublisher().publishInvalidation(EVENT_ID, "published");
+    });
+
+    expect(added[0].data.correlationId).to.equal("11111111-1111-4111-8111-111111111111");
   });
 
   it("retries with backoff, since a dropped job leaves the cache stale until the TTL", async () => {

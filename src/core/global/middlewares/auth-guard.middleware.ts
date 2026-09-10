@@ -2,6 +2,7 @@ import { NextFunction, Request, RequestHandler, Response } from "express";
 
 import { ERole } from "../entities/enums";
 import { CustomError } from "../../global/errors";
+import { setRequestActor } from "core/global/utils/request-context";
 import AuthService from "Modules/Auth/service/auth.service";
 
 export const rolePolicies = {
@@ -26,6 +27,7 @@ class AuthGuardMiddleware {
       }
 
       req.jwtPayload = await AuthService.authenticate(token);
+      setRequestActor(req.jwtPayload.id, req.jwtPayload.role);
       next();
     } catch (error) {
       if (error instanceof CustomError) {
