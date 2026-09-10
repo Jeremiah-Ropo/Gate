@@ -2,7 +2,7 @@ import { withTransaction, type DbTransaction } from "core/db/postgres";
 import { EEventStatus } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
 import { generateUniqueSuffix, slugify } from "core/global/utils/helper";
-import cloudinary from "core/providers/cloud-storage/cloudinary";
+import cloudStorage from "core/providers/cloud-storage";
 import logger from "core/global/utils/logger";
 import EventCachePublisher from "../queue/event-cache.publisher";
 import { EventMutationReason } from "../queue/event-cache.entity";
@@ -170,7 +170,7 @@ export class EventService implements IEventService {
   async uploadCoverImage(id: string, requesterId: string, tempFilePath: string): Promise<Event> {
     await this.assertOwnership(id, requesterId);
 
-    const coverImage = await cloudinary.uploadFile(tempFilePath, "events");
+    const coverImage = await cloudStorage.uploadFile(tempFilePath, "events");
     const updated = await this.repository.update(id, { coverImage });
     if (!updated) {
       throw new CustomError(400, "BadRequest", "Cover image not updated");

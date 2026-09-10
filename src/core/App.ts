@@ -17,7 +17,7 @@ import { errorHandler } from "core/global/middlewares/error-handler.middleware";
 import notFound from "core/global/middlewares/not-found.middleware";
 import { corsMiddleware } from "core/global/utils/cors-options";
 import logger from "core/global/utils/logger";
-import "core/providers/cloud-storage/cloudinary";
+import "core/providers/cloud-storage";
 import queueManager from "./global/shared/queue/queue-manager";
 import { SetupRouters } from "./Routers";
 

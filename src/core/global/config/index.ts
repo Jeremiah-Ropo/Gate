@@ -47,3 +47,17 @@ export const CLOUDINARY = {
   API_KEY: process.env.API_KEY,
   API_SECRET: process.env.API_SECRET,
 };
+
+function cloudflarePublicUrl(): string {
+  const customDomain = process.env.CLOUDFLARE_R2_CUSTOM_DOMAIN;
+  if (customDomain) return customDomain.startsWith("https://") ? customDomain : `https://${customDomain}`;
+  return process.env.CLOUDFLARE_R2_PUBLIC_URL || "";
+}
+
+export const CLOUDFLARE_R2 = {
+  ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || "",
+  ACCESS_KEY_ID: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "",
+  SECRET_ACCESS_KEY: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "",
+  BUCKET_NAME: process.env.CLOUDFLARE_R2_BUCKET_NAME || "quikaar-images",
+  PUBLIC_URL: cloudflarePublicUrl(),
+};
