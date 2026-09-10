@@ -8,7 +8,7 @@ async function bootstrapAdmin(pool: Pool): Promise<void> {
   if (!email) return;
 
   const result = await pool.query(
-    `UPDATE users SET role = 'admin', "updatedAt" = now() WHERE email = $1 RETURNING id, email, role`,
+    `UPDATE users SET role = 'admin', updated_at = now() WHERE email = $1 RETURNING id, email, role`,
     [email],
   );
 
