@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "@/components/StatusMessage";
-import { useAuth } from "@/context/AuthContext";
 import { useDoorSession } from "@/lib/door/useDoorSession";
 import { enqueue, pendingFor } from "@/lib/door/scanQueue";
 import { useScanSync } from "@/lib/door/useScanSync";
@@ -28,7 +27,6 @@ const OUTCOME_LABEL: Record<ScanOutcome, string> = {
 
 export function DoorScannerPage() {
   const { eventId = "" } = useParams<{ eventId: string }>();
-  const { isPreview } = useAuth();
   const { manifest, verify, fromCache, error, isLoading, refresh } = useDoorSession(eventId);
   const [payload, setPayload] = useState("");
   const [decision, setDecision] = useState<ScanDecision | null>(null);
@@ -63,14 +61,6 @@ export function DoorScannerPage() {
       cancelled = true;
     };
   }, [eventId, admit]);
-
-  if (isPreview) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <ErrorState message="The door is not available in preview: verifying a ticket needs a real public key from the server." />
-      </div>
-    );
-  }
 
   if (isLoading) return <LoadingState label="Loading the door…" />;
   if (error || !manifest || !verify) {

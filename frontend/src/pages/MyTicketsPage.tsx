@@ -16,16 +16,23 @@ const STATUS_STYLE: Record<TicketStatus, string> = {
 
 export function MyTicketsPage() {
   const client = useGateClient();
-  const { data: tickets, isPending, isError, error } = useQuery({
+  const {
+    data: tickets,
+    isPending,
+    isError,
+    error,
+  } = useQuery({
     queryKey: queryKeys.myTickets,
     queryFn: client.listMyTickets,
   });
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="page-shell">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900">My tickets</h1>
-        <p className="mt-1 text-sm text-neutral-500">Every ticket you've claimed, with its check-in QR code.</p>
+        <h1 className="text-4xl font-semibold text-neutral-900">My tickets</h1>
+        <p className="mt-1 text-sm text-neutral-500">
+          Your next experience starts here. Keep your ticket ready at the door.
+        </p>
       </div>
 
       {isPending && <LoadingState label="Loading your tickets…" />}
@@ -35,25 +42,39 @@ export function MyTicketsPage() {
       )}
 
       {tickets && tickets.length > 0 && (
-        <div className="space-y-4">
+        <div className="grid gap-6 md:grid-cols-2">
           {tickets.map((ticket) => (
-            <div
-              key={ticket.id}
-              className="flex flex-col items-center gap-4 rounded-lg border border-neutral-200 p-4 sm:flex-row sm:items-start"
-            >
-              <QrCode value={ticket.qrPayload} size={120} />
+            <div key={ticket.id} className="ticket-card flex flex-col items-center gap-6 sm:flex-row sm:items-start">
+              {ticket.status !== "valid" ? (
+                <p className="max-w-48 text-sm text-neutral-500">
+                  This ticket is {ticket.status} and cannot be used for admission.
+                </p>
+              ) : ticket.qrPayload.split(".").length === 4 ? (
+                <QrCode value={ticket.qrPayload} size={160} />
+              ) : (
+                <p className="max-w-48 text-sm text-amber-700">
+                  Signed QR not available yet. This ticket is not ready for door scanning.
+                </p>
+              )}
               <div className="flex-1 text-center sm:text-left">
+                <p className="eyebrow mb-3">Your admission</p>
                 <span
-                  className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[ticket.status]}`}
+                  className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                    STATUS_STYLE[ticket.status]
+                  }`}
                 >
                   {ticket.status}
                 </span>
-                <p className="mt-2 text-sm text-neutral-500">
-                  Issued {new Date(ticket.issuedAt).toLocaleDateString()}
-                </p>
-                <Link to={`/events/${ticket.eventId}`} className="mt-1 inline-block text-sm font-medium text-neutral-900">
+                <p className="mt-2 text-sm text-neutral-500">Issued {new Date(ticket.issuedAt).toLocaleDateString()}</p>
+                <Link
+                  to={`/events/${ticket.eventId}`}
+                  className="mt-1 inline-block text-sm font-medium text-neutral-900"
+                >
                   View event →
                 </Link>
+                <p className="mt-4 text-xs text-neutral-500">
+                  Bring ID matching the name on your ticket. Staff verify your ticket at the door.
+                </p>
               </div>
             </div>
           ))}
