@@ -6,50 +6,32 @@ import { useAuth } from "@/context/AuthContext";
 import { useDoorSession } from "@/lib/door/useDoorSession";
 import { enqueue, pendingFor } from "@/lib/door/scanQueue";
 import { useScanSync } from "@/lib/door/useScanSync";
-import { verifyTicket, type VerifiedTicket } from "@/lib/door/verifyTicket";
+import { recordScan, type ScanDecision, type ScanOutcome } from "@/lib/door/recordScan";
 
-type Outcome = "success" | "duplicate" | "denied" | "invalid";
-
-const OUTCOME_STYLE: Record<Outcome, string> = {
+const OUTCOME_STYLE: Record<ScanOutcome, string> = {
   success: "bg-green-600 text-white",
   duplicate: "bg-amber-500 text-white",
   denied: "bg-red-600 text-white",
   invalid: "bg-neutral-800 text-white",
+  // Deliberately not a verdict colour. The device is broken, not the ticket.
+  "storage-error": "bg-red-800 text-white",
 };
 
-interface Decision {
-  outcome: Outcome;
-  reason: string;
-  holderName: string | null;
-}
-
-/**
- * Decides admission from the signature and the manifest alone -- no network, which is the
- * whole point. Order matters: a payload that fails verification has no trustworthy ticketId,
- * so nothing may be looked up until the signature has been checked.
- */
-function decide(result: VerifiedTicket, eventId: string, blocked: string[], checkedIn: string[]): Decision {
-  if (!result.ok || !result.ticketId) {
-    return { outcome: "invalid", reason: result.reason ?? "Not a valid ticket", holderName: null };
-  }
-  if (result.eventId !== eventId) {
-    return { outcome: "denied", reason: "Ticket is for a different event", holderName: result.holderName };
-  }
-  if (blocked.includes(result.ticketId)) {
-    return { outcome: "denied", reason: "Ticket is void or refunded", holderName: result.holderName };
-  }
-  if (checkedIn.includes(result.ticketId)) {
-    return { outcome: "duplicate", reason: "Already checked in", holderName: result.holderName };
-  }
-  return { outcome: "success", reason: "Checked in", holderName: result.holderName };
-}
+// "storage-error" is the internal name; staff need to read the state at a glance in bad light.
+const OUTCOME_LABEL: Record<ScanOutcome, string> = {
+  success: "success",
+  duplicate: "duplicate",
+  denied: "denied",
+  invalid: "invalid",
+  "storage-error": "cannot record",
+};
 
 export function DoorScannerPage() {
   const { eventId = "" } = useParams<{ eventId: string }>();
   const { isPreview } = useAuth();
   const { manifest, verify, fromCache, error, isLoading, refresh } = useDoorSession(eventId);
   const [payload, setPayload] = useState("");
-  const [decision, setDecision] = useState<Decision | null>(null);
+  const [decision, setDecision] = useState<ScanDecision | null>(null);
 
   /**
    * Every ticket this device treats as already admitted. Only ever grows, and is only ever
@@ -104,27 +86,24 @@ export function DoorScannerPage() {
     const code = payload.trim();
     if (!code) return;
 
-    const result = await verifyTicket(code, verify);
-    const next = decide(result, eventId, manifest.blockedTicketIds, [...manifest.checkedInTicketIds, ...seen]);
-    if (next.outcome === "success" && result.ticketId) {
-      admit([result.ticketId]);
+    // recordScan writes the scan down before it reports one, so nothing below this line can
+    // show a green screen for an admission that was never recorded.
+    const next = await recordScan(
+      {
+        code,
+        eventId,
+        blockedTicketIds: manifest.blockedTicketIds,
+        checkedInTicketIds: [...manifest.checkedInTicketIds, ...seen],
+      },
+      { verify, enqueue },
+    );
+
+    if (next.admittedTicketId) {
+      admit([next.admittedTicketId]);
     }
     setDecision(next);
     setPayload("");
 
-    // Queued before anything is sent. The scan is a fact the moment it happens, and the
-    // server hearing about it is a separate concern that may be minutes away.
-    await enqueue({
-      clientScanId: crypto.randomUUID(),
-      eventId,
-      // The raw scanned string, never re-encoded: the server verifies the same bytes.
-      ticketCode: code,
-      scannedAt: new Date().toISOString(),
-      localStatus: next.outcome,
-      holderName: next.holderName,
-      // Stored so the admitted set can be rebuilt from the queue after a reload.
-      ticketId: result.ticketId,
-    });
     await refreshCount();
     void sync();
   };
@@ -163,7 +142,7 @@ export function DoorScannerPage() {
 
       {decision && (
         <div className={`mt-6 rounded-xl p-6 ${OUTCOME_STYLE[decision.outcome]}`}>
-          <p className="text-sm font-medium uppercase tracking-wide opacity-80">{decision.outcome}</p>
+          <p className="text-sm font-medium uppercase tracking-wide opacity-80">{OUTCOME_LABEL[decision.outcome]}</p>
           {/* Large on purpose: this is the name a staff member reads off against an ID. */}
           {decision.holderName && <p className="mt-1 text-3xl font-semibold">{decision.holderName}</p>}
           <p className="mt-2 text-sm opacity-90">{decision.reason}</p>
