@@ -12,7 +12,7 @@ const connection = new Redis(url, { maxRetriesPerRequest: null });
 const queue = new Queue("event-cache-queue", { connection });
 const events = new QueueEvents("event-cache-queue", { connection });
 const eventId = randomUUID();
-const key = `events:published:v2:${eventId}`;
+const key = `events:published:${eventId}`;
 let child;
 try {
   await events.waitUntilReady();
