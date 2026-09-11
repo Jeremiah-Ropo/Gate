@@ -68,7 +68,7 @@ export class AuthService implements IAuthService {
     }
     const promoted =
       isBootstrapAdmin(user.email) && user.role !== "admin"
-        ? ((await this.users.update(user.id, { role: "admin" })) ?? user)
+        ? (await this.users.update(user.id, { role: "admin" })) ?? user
         : user;
     return this.issueTokens(promoted);
   }

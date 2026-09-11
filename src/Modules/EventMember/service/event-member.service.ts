@@ -59,7 +59,10 @@ export class EventMemberService implements IEventMemberService {
     return event;
   }
 
-  private toMemberWithUser(member: EventMember, user: NonNullable<Awaited<ReturnType<IUserRepository["findById"]>>>): EventMemberWithUser {
+  private toMemberWithUser(
+    member: EventMember,
+    user: NonNullable<Awaited<ReturnType<IUserRepository["findById"]>>>,
+  ): EventMemberWithUser {
     return { ...member, user: toPublicUser(user) };
   }
 

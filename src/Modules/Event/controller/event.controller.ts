@@ -46,12 +46,7 @@ class EventController {
   public static async update(req: Request, res: Response, next: NextFunction) {
     try {
       const payload: IUpdateEventDTO = req.body;
-      const event = await EventService.updateEvent(
-        req.params.eventId,
-        req.jwtPayload.id,
-        payload,
-        req.jwtPayload.role,
-      );
+      const event = await EventService.updateEvent(req.params.eventId, req.jwtPayload.id, payload, req.jwtPayload.role);
       res.customSuccess(200, "Event updated successfully", event);
     } catch (error) {
       next(error);

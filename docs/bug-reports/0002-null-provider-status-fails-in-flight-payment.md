@@ -52,11 +52,11 @@ if (status === null) {
 
 ## What breaks
 
-| Path                         | Why `null` is wrong                                                                                          |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `GET` during an in-flight pay | `getById` reconciles immediately. TTL does not apply. A poll can fail a payment that is about to succeed.    |
-| Recovery after a 30s hang    | Default processing TTL is 60s and the hang card takes 30s. Shorten TTL, or delay the insert, and the sweep fails a charge the stub later records as `succeeded`. |
-| Process kill after start, before insert | Awe's stated case. Safe only if nobody later writes that reference as succeeded. The live `pay()` call still can. |
+| Path                                    | Why `null` is wrong                                                                                                                                              |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET` during an in-flight pay           | `getById` reconciles immediately. TTL does not apply. A poll can fail a payment that is about to succeed.                                                        |
+| Recovery after a 30s hang               | Default processing TTL is 60s and the hang card takes 30s. Shorten TTL, or delay the insert, and the sweep fails a charge the stub later records as `succeeded`. |
+| Process kill after start, before insert | Awe's stated case. Safe only if nobody later writes that reference as succeeded. The live `pay()` call still can.                                                |
 
 The capstone count is not the only casualty. The worse outcome is a provider success with no ticket: inventory is released, someone else can claim the last seat, and the original payer has a charge and nothing to scan.
 

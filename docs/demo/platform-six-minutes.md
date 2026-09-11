@@ -111,7 +111,7 @@ One question, then the proposal. Do not stack two questions. If they dodge, ask 
 
 ### Jeremiah — Public browse
 
-**Ask:** If Events already owns the projection and the cache, what failure do *you* own? If `eventProjectionService` is wrong, what in this slice notices?
+**Ask:** If Events already owns the projection and the cache, what failure do _you_ own? If `eventProjectionService` is wrong, what in this slice notices?
 
 **Follow-up:** The frontend stores a refresh token and never calls `POST /auth/refresh-token`. After 15 minutes the UI looks logged in and every claim 401s. Is that yours or mine?
 
