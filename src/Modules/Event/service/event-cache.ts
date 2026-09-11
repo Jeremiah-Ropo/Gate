@@ -29,9 +29,12 @@ const KEY_PREFIX = "events:published";
 const LIST_KEY = `${KEY_PREFIX}:list`;
 const descriptorKey = (eventId: string): string => `${KEY_PREFIX}:${eventId}`;
 
-// Backstop only — correctness comes from invalidation after publish/update, not expiry.
-// 24h so a dropped invalidation job does not evict a still-correct catalogue mid-day.
-export const EVENT_CACHE_TTL_SECONDS = 24 * 60 * 60;
+// Backstop for an invalidation job that is dropped or simply not consumed yet. Deliberately
+// short: the worker that consumes those jobs runs on a free Render web service that spins down
+// when idle, so whenever it is asleep this expiry — not the invalidation — is what bounds how
+// long a stale catalogue can be served. Raise it once invalidation no longer depends on a
+// process that might be asleep.
+export const EVENT_CACHE_TTL_SECONDS = 5 * 60;
 
 /** Dates do not survive JSON, so they are revived on the way out. */
 type SerializedDescriptor = Omit<IPublishedEventDescriptor, "startsAt"> & { startsAt: string };

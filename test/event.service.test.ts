@@ -3,6 +3,7 @@ import { expect } from "chai";
 import { EEventStatus } from "core/global/entities/enums";
 import { CustomError } from "core/global/errors";
 import { EventService } from "Modules/Event/service/event.service";
+import { FakeEventCache } from "./helpers/fake-event-cache";
 import { FakeEventInventoryRepository } from "./helpers/fake-event-inventory.repository";
 import { FakeEventRepository, makeEvent } from "./helpers/fake-event.repository";
 
@@ -20,9 +21,16 @@ const publishPayload = {
 const build = (rows = [] as ReturnType<typeof makeEvent>[]) => {
   const repository = new FakeEventRepository(rows);
   const inventory = new FakeEventInventoryRepository();
-  const service = new EventService(repository, inventory, async (work) => work({} as never));
-  return { repository, inventory, service };
+  const cache = new FakeEventCache();
+  const service = new EventService(repository, inventory, async (work) => work({} as never), cache);
+  return { repository, inventory, cache, service };
 };
+
+/**
+ * Invalidation is fired off without being awaited, so the assertions below yield once to let the
+ * already-resolved promise settle rather than reaching into the service for a handle on it.
+ */
+const settle = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 describe("EventService.publishEvent", () => {
   it("creates the event already published", async () => {
@@ -148,5 +156,75 @@ describe("EventService.deleteEvent", () => {
     } catch (error) {
       expect((error as CustomError).HttpStatusCode).to.equal(403);
     }
+  });
+});
+
+/**
+ * Regression: invalidation used to be queued for the worker and nothing else. That worker is a
+ * free-plan instance which spins down when idle, so a newly published event kept serving from a
+ * stale cached list until the backstop TTL expired. The committed write now clears the cache
+ * itself, and the queued job is redundancy rather than the only mechanism.
+ */
+describe("EventService cache invalidation", () => {
+  it("clears the cache inline when an event is published, without waiting for the worker", async () => {
+    const { service, cache } = build();
+
+    const event = await service.publishEvent(ORGANISER_ID, publishPayload);
+    await settle();
+
+    expect(cache.invalidated).to.deep.equal([event.id]);
+  });
+
+  it("clears the cache when an event is edited", async () => {
+    const { service, cache } = build([makeEvent({ id: EVENT_ID, createdBy: ORGANISER_ID })]);
+
+    await service.updateEvent(EVENT_ID, ORGANISER_ID, { name: "Renamed Summit" });
+    await settle();
+
+    expect(cache.invalidated).to.deep.equal([EVENT_ID]);
+  });
+
+  it("clears the cache when an event is cancelled, so it leaves the public catalogue", async () => {
+    const { service, cache } = build([makeEvent({ id: EVENT_ID, createdBy: ORGANISER_ID })]);
+
+    await service.deleteEvent(EVENT_ID, ORGANISER_ID);
+    await settle();
+
+    expect(cache.invalidated).to.deep.equal([EVENT_ID]);
+  });
+
+  it("leaves the cache alone when the mutation was rejected", async () => {
+    const { service, cache } = build([makeEvent({ id: EVENT_ID, createdBy: ORGANISER_ID })]);
+
+    try {
+      await service.updateEvent(EVENT_ID, ATTACKER_ID, { name: "Renamed" });
+      expect.fail("expected updateEvent to reject a non-owner");
+    } catch {
+      // asserted in the authorisation suite above
+    }
+    await settle();
+
+    expect(cache.invalidated).to.deep.equal([]);
+  });
+
+  // The write is already durable when this runs, so a cache that cannot be reached must not turn a
+  // successful publish into a failed request. The queued job and the TTL both still cover it.
+  it("still returns the event when the cache cannot be cleared", async () => {
+    const repository = new FakeEventRepository([]);
+    const unreachable = new FakeEventCache();
+    unreachable.invalidateEvent = async () => {
+      throw new Error("Redis unreachable");
+    };
+    const service = new EventService(
+      repository,
+      new FakeEventInventoryRepository(),
+      async (work) => work({} as never),
+      unreachable,
+    );
+
+    const event = await service.publishEvent(ORGANISER_ID, publishPayload);
+    await settle();
+
+    expect(event.status).to.equal("published");
   });
 });
