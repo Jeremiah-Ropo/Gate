@@ -2,7 +2,7 @@
 
 **Status:** proposed, for review before implementation merges
 **Owner:** Victor Emeke (Events and console)
-**Date:** 2026-09-04
+**Date:** 2026-09-11
 **Affects:** Public browse (consumes the projection), Inventory (read on every projection request)
 
 > Numbered 0004 in the team ADR log.
@@ -34,7 +34,7 @@ merge them in at read time.
 
 Concretely: `events:published:list` and `events:published:<id>` hold an event descriptor holding
 nothing from `events_inventory`, invalidated by the job published after an event mutation commits,
-with a 15-minute TTL as a backstop for a lost job. Capacity and the counters are read through
+with a 24-hour TTL as a backstop for a lost job. Capacity and the counters are read through
 `IEventInventoryReader` on each call and project as `null` when Inventory cannot be read — never as
 `0`, which would read as sold out.
 
@@ -52,8 +52,8 @@ drafts, which never belong in a published cache.
 Simplest and fastest: one cache entry serves a browse request outright, with no inventory lookup.
 
 **Rejected because the counters would be knowably wrong and nothing would clear them.** No event
-mutation accompanies a claim, so the only thing expiring a stale count is the TTL. At 15 minutes a
-sold-out event keeps advertising availability for 15 minutes. Shortening the TTL to seconds does not
+mutation accompanies a claim, so the only thing expiring a stale count is the TTL. At 24 hours a
+sold-out event would keep advertising availability for a day. Shortening the TTL to seconds does not
 fix it — it just narrows the window while reducing the cache to a thin veneer over the database. It
 also puts this slice in the position of publishing a number it knows may be false at the exact moment
 a user decides to claim, which is the confusion the system invariant exists to prevent.

@@ -1,6 +1,6 @@
 # Slice design — Events and console
 
-**Owner:** Victor Emeke · **Status:** for review · **Date:** 2026-09-07
+**Owner:** Victor Emeke · **Status:** merged (#15, #16) · **Date:** 2026-09-11
 
 ## What this slice owns
 
@@ -34,10 +34,16 @@ eventProjectionService.getPublishedById(id); // 404s for anything not published
 eventProjectionService.listForOrganiser(userId); // console rows, drafts included
 ```
 
-`IPublishedEventProjection` carries `id, name, description, venue, startsAt` from `events`, plus
-`capacity, reserved, remaining, sold` from `events_inventory`. `coverImage`, `slug`, `ticketPrice`
-and `createdBy` are deliberately excluded — a column added to the table is opt-in to the contract,
-never leaked into it by default.
+`IPublishedEventProjection` carries `id, name, description, venue, address, coverImage, startsAt,
+ticketPrice, currency` from `events`, plus `capacity, reserved, remaining, sold` from
+`events_inventory`. `slug` and `createdBy` stay out — a column added to the table is opt-in to the
+contract, never leaked into it by default.
+
+**Revised after review:** the contract originally excluded `address`, `coverImage`, `ticketPrice`
+and `currency`. Public browse asked for them (raised via the note in `Modules/Event/index.ts`) —
+browse needs to show a price and an organiser cannot edit what they cannot see. All four are set at
+publish and only change through an event mutation, so they carry the same invalidation guarantee as
+the rest of the descriptor and were safe to add.
 
 ## Data ownership
 
@@ -64,15 +70,20 @@ Reads are cache-aside over Redis, but only over the fields this slice mutates:
 | name, description, venue, startsAt  | Redis, falling back to Postgres    | Only Events changes these, so Events can invalidate them        |
 | capacity, reserved, remaining, sold | Inventory, read live every request | These move on claims, which produce no invalidation signal here |
 
-Keys are `events:published:list` and `events:published:<id>`, with a 15-minute TTL that is a
-backstop for a lost invalidation job, not the freshness mechanism. Publication status is part of the
+Keys are `events:published:list` and `events:published:<id>`, with a 24-hour TTL that is a
+backstop for a lost invalidation job, not the freshness mechanism.
+
+**Revised after review:** the TTL started at 15 minutes. It was raised to 24 hours once
+invalidation was proven to work — a short TTL was quietly doing the job invalidation should do,
+and masking the bug where nothing was queued at all. Correctness comes from the invalidation
+job; expiry only limits the blast radius of a lost one. Publication status is part of the
 SQL predicate, so a draft is indistinguishable from a missing row and can never be cached as public.
 
 The console bypasses the cache entirely: an organiser needs current truth, and the console includes
 drafts, which never belong in a published cache. Its responses are `private, no-cache` so a shared
 cache never holds one organiser's numbers.
 
-Reasoning is recorded in [ADR 0004](adr/0004-events-read-model-caching.md).
+Reasoning is recorded in [ADR 0004](../adr/0004-events-read-model-caching.md).
 
 ## Write path
 
@@ -81,6 +92,7 @@ Reasoning is recorded in [ADR 0004](adr/0004-events-read-model-caching.md).
 | POST   | `/v1/event/publish`  | staff/admin                      |
 | POST   | `/v1/event`          | staff/admin (creates a draft)    |
 | PUT    | `/v1/event/:eventId` | staff/admin                      |
+| DELETE | `/v1/event/:eventId` | staff/admin (cancels, see below) |
 | GET    | `/v1/console`        | none (shell only, holds no data) |
 | GET    | `/v1/console/events` | staff/admin                      |
 
@@ -126,6 +138,27 @@ fallback rather than assuming it.
 - Public browse needs its own URL prefix for anonymous reads. This slice deliberately stays on
   `/v1/event`, matching main and the frontend's `lib/api.ts`, so nothing here has to be
   renamed for browse to land.
-- `coverImage` is not in the projection; ask if browse needs it.
-- `main` currently does not compile: four other slices still reference columns removed in #3. See
-  [the bug report](bug-reports/0001-schema-change-breaks-five-slices.md).
+- ~~`coverImage` is not in the projection~~ **Resolved.** Browse asked for it; `address`,
+  `coverImage`, `ticketPrice` and `currency` are now in the descriptor.
+- ~~`main` does not compile~~ **Resolved.** The schema fallout from #3 is fixed across all slices;
+  `yarn tsc` is clean and the suite runs. The report is kept as the record:
+  [bug report 0001](../bug-reports/0001-schema-change-breaks-five-slices.md).
+- **Delete is a status transition, not a row delete.** Ticket and reservation rows reference the
+  event with `ON DELETE no action`, so `DELETE /v1/event/:id` moves it to `cancelled`: it leaves the
+  public catalogue, and the organiser console still shows it. A hard delete would either fail on the
+  foreign key or orphan issued tickets.
+- **The imported frontend is not yet wired to this API.** It runs on preview/mock data and reads
+  `event.startsAt`, while the raw event endpoints return `starts_at` from Dipepo's #3 rename. The
+  projection uses `startsAt`, so browse consuming it closes the gap — worth confirming with Public
+  browse before demo.
+
+## Where AI was used
+
+Claude (Claude Code) drafted this slice's implementation, its tests and these documents. What I
+checked by hand rather than took on trust: the Helmet CSP behaviour, probed against the real
+`helmet()` middleware instead of read off the docs; the BullMQ job-id bug, confirmed by mutation —
+restoring the old colon format fails the test; the Redis degradation path, exercised by stubbing
+`RedisManager` into failure rather than asserting it degrades; and the frontend contract mismatch,
+found by reading `frontend/src/lib/api.ts` directly. The two staleness bugs in this document — a
+15-minute TTL that had become 24 hours, and a contract field list that had gained four fields — were
+caught the same way, by diffing the prose against the code rather than re-reading the prose.

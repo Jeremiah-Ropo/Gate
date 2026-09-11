@@ -19,7 +19,7 @@ BullMQ queues, idempotency locks, and the offline check-in dedupe window.
 
 ## Events & console slice
 
-Design: [docs/events-and-console-design.md](docs/events-and-console-design.md) · Caching rationale:
+Design: [docs/slices/events-and-console-design.md](docs/slices/events-and-console-design.md) · Caching rationale:
 [ADR 0004](docs/adr/0004-events-read-model-caching.md)
 
 Owns event creation/publication, the published-event read model, and the read-only organiser
