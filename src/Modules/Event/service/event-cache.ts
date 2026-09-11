@@ -11,13 +11,15 @@ import { IEventCache, IPublishedEventDescriptor } from "../entity/event.interfac
  * event mutation, so caching them would leave stale figures with no invalidation signal to clear
  * them. Cache what this slice mutates; invalidate it from this slice's committed mutations.
  *
- * Invalidation is driven by a BullMQ job published after the write commits, never before, so a
- * rolled-back transaction cannot evict a still-valid entry. The TTL below is a backstop for a
- * dropped job, not the freshness mechanism.
+ * Invalidation always runs after the write commits, never before, so a rolled-back transaction
+ * cannot evict a still-valid entry. It runs twice: inline in the API process, which is what
+ * readers actually depend on, and again from a BullMQ job, which is the half that retries. The
+ * TTL below is the backstop for both.
  *
  * Reads and writes swallow Redis failures and degrade to a miss: Postgres decides publication
- * authority, Redis only makes it faster. Invalidation is the exception and rethrows, because it
- * runs inside a worker where a failure must become a retry rather than a silently stale entry.
+ * authority, Redis only makes it faster. Invalidation is the exception and rethrows, so the worker
+ * turns a failure into a retry rather than a silently stale entry; the inline caller logs and
+ * carries on instead, since the write is durable by the time it runs and the job still covers it.
  * RedisManager's own helpers throw on failure, which is why each call is wrapped here.
  */
 
@@ -29,9 +31,12 @@ const KEY_PREFIX = "events:published";
 const LIST_KEY = `${KEY_PREFIX}:list`;
 const descriptorKey = (eventId: string): string => `${KEY_PREFIX}:${eventId}`;
 
-// Backstop only — correctness comes from invalidation after publish/update, not expiry.
-// 24h so a dropped invalidation job does not evict a still-correct catalogue mid-day.
-export const EVENT_CACHE_TTL_SECONDS = 24 * 60 * 60;
+// Backstop for an invalidation job that is dropped or simply not consumed yet. Deliberately
+// short: the worker that consumes those jobs runs on a free Render web service that spins down
+// when idle, so whenever it is asleep this expiry — not the invalidation — is what bounds how
+// long a stale catalogue can be served. Raise it once invalidation no longer depends on a
+// process that might be asleep.
+export const EVENT_CACHE_TTL_SECONDS = 5 * 60;
 
 /** Dates do not survive JSON, so they are revived on the way out. */
 type SerializedDescriptor = Omit<IPublishedEventDescriptor, "startsAt"> & { startsAt: string };

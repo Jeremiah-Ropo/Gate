@@ -7,6 +7,8 @@ import { IEventCache, IPublishedEventDescriptor } from "Modules/Event/entity/eve
  */
 export class FakeEventCache implements IEventCache {
   public writes = 0;
+  /** Event ids passed to invalidateEvent, in order, so write paths can assert they cleared. */
+  public invalidated: string[] = [];
   private descriptors = new Map<string, IPublishedEventDescriptor>();
   private list: IPublishedEventDescriptor[] | null = null;
 
@@ -31,6 +33,7 @@ export class FakeEventCache implements IEventCache {
   }
 
   async invalidateEvent(eventId: string): Promise<void> {
+    this.invalidated.push(eventId);
     this.descriptors.delete(eventId);
     this.list = null;
   }
