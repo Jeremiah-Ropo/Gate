@@ -6,6 +6,7 @@ import EventMemberRoutes from "Modules/EventMember/routes/event-member.routes";
 import createEventConsoleRoutes from "Modules/Event/routes/event-console.routes";
 import createEventRoutes from "Modules/Event/routes/event.routes";
 import createPublicEventRoutes from "Modules/PublicBrowse/routes/public-event.routes";
+import createPlatformRoutes from "Modules/Platform/routes/platform.routes";
 import createTicketRoutes from "Modules/Ticket/routes/ticket.routes";
 import TicketReservationRoutes from "Modules/TicketReservation/routes/ticket-reservation.routes";
 import UserRoutes from "Modules/User/routes/user.routes";
@@ -31,6 +32,7 @@ export class SetupRouters {
     app.use(`${this.apiPrefix}/events`, throttleMiddleware(rateLimitPolicies.publicBrowse), createPublicEventRoutes());
 
     app.use(`${this.apiPrefix}/user`, authenticated, UserRoutes);
+    app.use(`${this.apiPrefix}/platform`, authenticated, createPlatformRoutes());
     app.use(`${this.apiPrefix}/event`, authenticated, createEventRoutes());
     app.use(`${this.apiPrefix}/ticket`, authenticated, createTicketRoutes());
     app.use(`${this.apiPrefix}/event-members`, authenticated, EventMemberRoutes);

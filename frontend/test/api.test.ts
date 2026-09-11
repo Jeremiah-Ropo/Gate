@@ -8,6 +8,8 @@ import {
   payReservation,
   setAuthToken,
   setRefreshToken,
+  emitDemoSignal,
+  getPlatformMetrics,
 } from "../src/lib/api";
 
 const originalFetch = globalThis.fetch;
@@ -104,5 +106,21 @@ describe("api", () => {
 
     await listMyTickets();
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test("admin platform controls use the protected platform endpoints", async () => {
+    setAuthToken("admin-session");
+    const fetchMock = vi.fn(async (url, init) => {
+      expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer admin-session");
+      if (String(url).endsWith("/platform/metrics")) return respond({ service: "api", http: {}, queues: {}, worker: {}, reservations: {} });
+      expect(String(url).endsWith("/platform/demo-signals/rate-limited")).toBe(true);
+      expect(init?.method).toBe("POST");
+      return respond({ signal: "rate-limited", status: 429, observedAt: "now" });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await getPlatformMetrics();
+    await emitDemoSignal("rate-limited");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

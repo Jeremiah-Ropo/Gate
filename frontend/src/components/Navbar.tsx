@@ -39,6 +39,9 @@ export function Navbar() {
                   <Link to="/admin/events" className="font-medium text-neutral-700 hover:text-neutral-900">
                     Manage events
                   </Link>
+                  <Link to="/admin/platform" className="font-medium text-neutral-700 hover:text-neutral-900">
+                    Platform demo
+                  </Link>
                   <Link to="/door" className="font-medium text-neutral-700 hover:text-neutral-900">
                     Door check-in
                   </Link>

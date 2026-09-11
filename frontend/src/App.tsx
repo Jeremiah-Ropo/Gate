@@ -4,6 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { RoleRoute } from "@/components/RoleRoute";
 import { AdminEventsPage } from "@/pages/admin/AdminEventsPage";
 import { EventFormPage } from "@/pages/admin/EventFormPage";
+import { PlatformDemoPage } from "@/pages/admin/PlatformDemoPage";
 import { BrowseEventsPage } from "@/pages/BrowseEventsPage";
 import { EventDetailPage } from "@/pages/EventDetailPage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -45,6 +46,14 @@ export function App() {
             element={
               <RoleRoute roles={["admin"]}>
                 <AdminEventsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/admin/platform"
+            element={
+              <RoleRoute roles={["admin"]}>
+                <PlatformDemoPage />
               </RoleRoute>
             }
           />

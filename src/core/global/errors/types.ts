@@ -17,6 +17,7 @@ export type ErrorType =
   | "Forbidden"
   | "NotFound"
   | "Conflict"
+  | "TooManyRequests"
   | "NotImplemented"
   | "BadGateway"
   | "ServiceUnavailable"

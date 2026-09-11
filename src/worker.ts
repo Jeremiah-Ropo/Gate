@@ -6,6 +6,7 @@ import { connectDB, disconnectDB } from "core/db/postgres";
 import RedisManager from "core/db/redis";
 import queueManager from "core/global/shared/queue/queue-manager";
 import { closeAllWorkers, startAllWorkers } from "core/global/shared/queue/worker";
+import { startWorkerHeartbeat } from "core/global/shared/queue/worker/worker-metrics.util";
 import logger from "core/global/utils/logger";
 
 function listenForRenderHealth(): void {
@@ -22,12 +23,14 @@ export const startWorker = async (): Promise<void> => {
   await RedisManager.connect();
   await queueManager.connect();
   const workers = await startAllWorkers();
+  const heartbeatTimer = startWorkerHeartbeat();
   listenForRenderHealth();
   let shuttingDown = false;
 
   const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
+    clearInterval(heartbeatTimer);
     logger.info({ signal }, "Worker process shutting down");
     try {
       await closeAllWorkers(workers);

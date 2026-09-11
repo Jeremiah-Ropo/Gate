@@ -72,6 +72,7 @@ services:
     plan: free
     branch: main
     buildCommand: YARN_PRODUCTION=false yarn install --frozen-lockfile && yarn build
+    preDeployCommand: yarn db:migrate
     startCommand: yarn start:worker
     healthCheckPath: /
     maxShutdownDelaySeconds: 60
