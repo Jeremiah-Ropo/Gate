@@ -70,13 +70,23 @@ Reads are cache-aside over Redis, but only over the fields this slice mutates:
 | name, description, venue, startsAt  | Redis, falling back to Postgres    | Only Events changes these, so Events can invalidate them        |
 | capacity, reserved, remaining, sold | Inventory, read live every request | These move on claims, which produce no invalidation signal here |
 
-Keys are `events:published:list` and `events:published:<id>`, with a 24-hour TTL that is a
-backstop for a lost invalidation job, not the freshness mechanism.
+Keys are `events:published:list` and `events:published:<id>`, with a **5-minute** TTL that is a
+backstop, not the freshness mechanism. A committed mutation clears the cache **inline** and also
+publishes the invalidation job; the inline delete is what readers depend on, and the job is the
+half that survives a Redis blip because it retries with backoff.
 
-**Revised after review:** the TTL started at 15 minutes. It was raised to 24 hours once
-invalidation was proven to work — a short TTL was quietly doing the job invalidation should do,
-and masking the bug where nothing was queued at all. Correctness comes from the invalidation
-job; expiry only limits the blast radius of a lost one. Publication status is part of the
+**Revised twice, and the second time by production.** The TTL started at 15 minutes and was raised
+to 24 hours once invalidation looked proven — a short TTL had been quietly doing invalidation's job
+and masking the bug where no job was ever queued. That reasoning was right about tests and wrong
+about deployment: the worker consuming the queue is a free-plan instance that spins down after
+about fifteen minutes without inbound traffic, and nothing sends it any. Measured in production, it
+took 35.7s to answer while cold against 0.59s warm, and drained eight queued jobs in the twenty
+seconds after waking. So invalidation was not running, the 24-hour TTL _was_ the freshness
+mechanism after all, and raising it had made the stale window far worse.
+
+The fix takes the sleeping process off the read path: the API clears the keys itself, and the TTL
+drops to 5 minutes as a genuine backstop. A miss costs one `listPublished` query, and Inventory's
+counters were already read live on every request, so the cost of missing is small. Publication status is part of the
 SQL predicate, so a draft is indistinguishable from a missing row and can never be cached as public.
 
 The console bypasses the cache entirely: an organiser needs current truth, and the console includes
@@ -117,7 +127,9 @@ makes retries safe.
 | Failure                             | Behaviour                                                          |
 | ----------------------------------- | ------------------------------------------------------------------ |
 | Redis unreachable on read or write  | Degrades to a miss; browse falls back to Postgres and still serves |
+| Inline invalidation fails           | Logged, not awaited; the queued job is the retrying second attempt |
 | Invalidation job fails              | Propagates so BullMQ retries; TTL is the last-resort backstop      |
+| Worker asleep or down               | Inline delete already cleared the keys; the job drains on wake     |
 | Invalidation cannot be queued       | Logged, request still succeeds — the write is already durable      |
 | Inventory row missing or unreadable | Counters project as `null`; the event still lists                  |
 
@@ -159,6 +171,9 @@ checked by hand rather than took on trust: the Helmet CSP behaviour, probed agai
 `helmet()` middleware instead of read off the docs; the BullMQ job-id bug, confirmed by mutation —
 restoring the old colon format fails the test; the Redis degradation path, exercised by stubbing
 `RedisManager` into failure rather than asserting it degrades; and the frontend contract mismatch,
-found by reading `frontend/src/lib/api.ts` directly. The two staleness bugs in this document — a
-15-minute TTL that had become 24 hours, and a contract field list that had gained four fields — were
-caught the same way, by diffing the prose against the code rather than re-reading the prose.
+found by reading `frontend/src/lib/api.ts` directly. The staleness bugs in this document — a TTL
+figure that has now been wrong twice, and a contract field list that had gained four fields — were
+caught the same way, by diffing the prose against the code rather than re-reading the prose. The
+thing AI did _not_ catch is the one that mattered most: that the queue worker was asleep in
+production. No amount of reading the code would have shown that; it took measuring the deployed
+service.

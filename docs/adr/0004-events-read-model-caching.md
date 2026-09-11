@@ -34,7 +34,8 @@ merge them in at read time.
 
 Concretely: `events:published:list` and `events:published:<id>` hold an event descriptor holding
 nothing from `events_inventory`, invalidated by the job published after an event mutation commits,
-with a 24-hour TTL as a backstop for a lost job. Capacity and the counters are read through
+with a 5-minute TTL as a backstop. The API clears the keys inline on a committed mutation and
+also publishes the job; see the consequences note on the worker below. Capacity and the counters are read through
 `IEventInventoryReader` on each call and project as `null` when Inventory cannot be read — never as
 `0`, which would read as sold out.
 
@@ -52,8 +53,8 @@ drafts, which never belong in a published cache.
 Simplest and fastest: one cache entry serves a browse request outright, with no inventory lookup.
 
 **Rejected because the counters would be knowably wrong and nothing would clear them.** No event
-mutation accompanies a claim, so the only thing expiring a stale count is the TTL. At 24 hours a
-sold-out event would keep advertising availability for a day. Shortening the TTL to seconds does not
+mutation accompanies a claim, so the only thing expiring a stale count is the TTL. Even at 5
+minutes a sold-out event would keep advertising availability for five minutes. Shortening the TTL to seconds does not
 fix it — it just narrows the window while reducing the cache to a thin veneer over the database. It
 also puts this slice in the position of publishing a number it knows may be false at the exact moment
 a user decides to claim, which is the confusion the system invariant exists to prevent.
@@ -101,6 +102,16 @@ landed in #3 with the counters where they belong. The column has since been remo
   date for up to the TTL — low harm, and the reason the TTL exists.
 - Two reads per request instead of one, so the projection is slightly more complex than a single
   cache fetch.
+
+**Learned in production (2026-09-11):** this ADR said the TTL was a backstop and not the freshness
+mechanism. That was true of the design and false of the deployment. The worker consuming the
+invalidation queue is a free-plan instance that sleeps after ~15 minutes without inbound traffic,
+and nothing sends it any — so no invalidation ran, and the TTL silently became the only thing
+keeping the catalogue fresh. Raising it to 24 hours had therefore made staleness worse, not better.
+The correction is to clear the cache inline from the API, which is always warm, and keep the job as
+the retrying second attempt; the TTL is now 5 minutes and is a backstop in fact, not just in
+intent. The general lesson: "X is only a backstop" is a claim about runtime, and runtime is where
+it has to be checked.
 
 **Gained:**
 
