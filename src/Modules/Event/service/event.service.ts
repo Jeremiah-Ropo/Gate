@@ -8,9 +8,11 @@ import EventCachePublisher from "../queue/event-cache.publisher";
 import { EventMutationReason } from "../queue/event-cache.entity";
 import eventInventoryRepository from "../repository/event-inventory.repository";
 import eventRepository from "../repository/event.repository";
+import eventCache from "./event-cache";
 import { IEventInventoryRepository } from "../entity/event-inventory.interface";
 import {
   ICreateEventDTO,
+  IEventCache,
   IEventRepository,
   IEventService,
   IPublishEventDTO,
@@ -30,15 +32,28 @@ export class EventService implements IEventService {
     private readonly repository: IEventRepository,
     private readonly inventory: IEventInventoryRepository,
     private readonly runTransaction: TransactionRunner = withTransaction,
+    private readonly cache: IEventCache = eventCache,
   ) {}
 
   /**
-   * Queues cache invalidation for a mutation that has already committed. Deliberately not awaited
-   * into the request's failure path: the write is durable by this point, so refusing the response
-   * because Redis is unreachable would be the wrong trade. A lost job leaves the cache stale only
-   * until the backstop TTL in event-cache.ts.
+   * Clears the cache for a mutation that has already committed, and queues the same invalidation
+   * for the worker.
+   *
+   * The inline delete is what readers actually depend on. Queueing alone was not enough: the worker
+   * consuming that queue is a free-plan instance that spins down when idle, so a published event
+   * could sit behind a stale catalogue until the backstop TTL expired. This process is always warm
+   * and the work is two idempotent DELs, so doing it here takes a sleeping process off the path.
+   *
+   * The job is still published, and is the half that survives a Redis blip: it retries with
+   * backoff, where the inline delete gets a single attempt. Both are deliberately kept out of the
+   * request's failure path — the write is durable by this point, so failing the response because
+   * Redis is unreachable would be the wrong trade, and the TTL remains the last line of defence.
    */
   private announceCommittedMutation(eventId: string, reason: EventMutationReason): void {
+    this.cache
+      .invalidateEvent(eventId)
+      .catch((err) => logger.error(`[Event] inline cache invalidation failed for ${eventId}: ${err}`));
+
     new EventCachePublisher()
       .publishInvalidation(eventId, reason)
       .catch((err) => logger.error(`[Event] failed to queue cache invalidation for ${eventId}: ${err}`));
