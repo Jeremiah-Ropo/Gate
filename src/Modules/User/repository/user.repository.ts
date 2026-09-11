@@ -50,11 +50,7 @@ class UserRepository implements IUserRepository {
   async listAssignable(query?: string, limit = 100): Promise<User[]> {
     const q = query?.trim();
     const match = q
-      ? or(
-          ilike(UserTable.firstName, `%${q}%`),
-          ilike(UserTable.lastName, `%${q}%`),
-          ilike(UserTable.email, `%${q}%`),
-        )
+      ? or(ilike(UserTable.firstName, `%${q}%`), ilike(UserTable.lastName, `%${q}%`), ilike(UserTable.email, `%${q}%`))
       : undefined;
 
     return this.db

@@ -8,13 +8,13 @@
 
 All of these live on **Ibukun's workspace**, not the previous Taiwo account.
 
-| Resource | URL / ID |
-| --- | --- |
-| **API** | https://gate-api-c21c.onrender.com |
-| **Web** | https://gate-web-5k09.onrender.com |
-| **Worker** | https://gate-worker-b106.onrender.com (HTTP health wrapper; jobs run in-process) |
-| **Postgres** | `gate-db` — `dpg-dahi10p5efls73c1acp0-a` (Frankfurt, free; expires ~2026-10-10) |
-| **Redis** | `gate-queue` — `red-dahi10ss728c73b6lsr0` |
+| Resource              | URL / ID                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| **API**               | https://gate-api-c21c.onrender.com                                                                |
+| **Web**               | https://gate-web-5k09.onrender.com                                                                |
+| **Worker**            | https://gate-worker-b106.onrender.com (HTTP health wrapper; jobs run in-process)                  |
+| **Postgres**          | `gate-db` — `dpg-dahi10p5efls73c1acp0-a` (Frankfurt, free; expires ~2026-10-10)                   |
+| **Redis**             | `gate-queue` — `red-dahi10ss728c73b6lsr0`                                                         |
 | **Render dashboards** | API `srv-dahi2de1egvs7383l88g`, worker `srv-dahi2e67bikc73e9io5g`, web `srv-dahi2hmq1p3s73dl8qh0` |
 
 GitHub auto-deploy is not connected on this workspace. After pushing `main`, trigger a deploy from the dashboard or API. Check-in keys are generated with `yarn setup:ticket-keys` and stored as `PRIVATE_CHECKIN_KEY` / `PUBLIC_CHECKIN_KEY` on API and worker.
@@ -75,13 +75,13 @@ If the ids match, request-to-job correlation is working.
 
 ## Symptom guide
 
-| Symptom | Inspect | Safe first action |
-| --- | --- | --- |
-| Claims return errors | API errors, DB pool, lock wait, inventory invariant | Stop unsafe writes only if correctness is uncertain; do not switch authority to Redis |
-| Reservations remain pending | `worker.heartbeatAt`, queue depth, `reservations.overduePending` | Restart `gate-worker`, then confirm sweep catches up |
-| Public browse is stale | Cache invalidation queue failures, `event-cache-queue` depth | Invalidate affected public cache key; retain DB fallback |
-| Door sync retries/duplicates | Device ID, batch ID, client scan IDs | Replay the same batch; never delete dedupe records to force success |
-| Redis unavailable | `/health/ready`, API/worker logs | Preserve DB-backed correctness; restore Redis and observe catch-up |
+| Symptom                      | Inspect                                                          | Safe first action                                                                     |
+| ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Claims return errors         | API errors, DB pool, lock wait, inventory invariant              | Stop unsafe writes only if correctness is uncertain; do not switch authority to Redis |
+| Reservations remain pending  | `worker.heartbeatAt`, queue depth, `reservations.overduePending` | Restart `gate-worker`, then confirm sweep catches up                                  |
+| Public browse is stale       | Cache invalidation queue failures, `event-cache-queue` depth     | Invalidate affected public cache key; retain DB fallback                              |
+| Door sync retries/duplicates | Device ID, batch ID, client scan IDs                             | Replay the same batch; never delete dedupe records to force success                   |
+| Redis unavailable            | `/health/ready`, API/worker logs                                 | Preserve DB-backed correctness; restore Redis and observe catch-up                    |
 
 ## Inventory checks
 

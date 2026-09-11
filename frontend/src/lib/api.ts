@@ -132,6 +132,24 @@ export function errorMessage(err: unknown): string {
   return err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
 }
 
+export interface PlatformMetrics {
+  service: "api";
+  http: { requests: number; errors: number; status401: number; status403: number; status429: number };
+  queues: Record<string, { waiting: number; active: number; delayed: number; failed: number }>;
+  worker: { heartbeatAt: string | null; jobsCompleted: number; jobsFailed: number };
+  reservations: { overduePending: number };
+}
+
+export type DemoSignal = "healthy" | "unauthorized" | "forbidden" | "rate-limited" | "dependency-down";
+
+export function getPlatformMetrics(): Promise<PlatformMetrics> {
+  return request<PlatformMetrics>("/platform/metrics");
+}
+
+export function emitDemoSignal(signal: DemoSignal): Promise<{ signal: DemoSignal; status: number; observedAt: string }> {
+  return request(`/platform/demo-signals/${signal}`, { method: "POST" });
+}
+
 // --- Public browse: no auth required ---
 
 export function listEvents(): Promise<GateEvent[]> {
