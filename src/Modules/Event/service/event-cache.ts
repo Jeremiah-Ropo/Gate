@@ -11,13 +11,15 @@ import { IEventCache, IPublishedEventDescriptor } from "../entity/event.interfac
  * event mutation, so caching them would leave stale figures with no invalidation signal to clear
  * them. Cache what this slice mutates; invalidate it from this slice's committed mutations.
  *
- * Invalidation is driven by a BullMQ job published after the write commits, never before, so a
- * rolled-back transaction cannot evict a still-valid entry. The TTL below is a backstop for a
- * dropped job, not the freshness mechanism.
+ * Invalidation always runs after the write commits, never before, so a rolled-back transaction
+ * cannot evict a still-valid entry. It runs twice: inline in the API process, which is what
+ * readers actually depend on, and again from a BullMQ job, which is the half that retries. The
+ * TTL below is the backstop for both.
  *
  * Reads and writes swallow Redis failures and degrade to a miss: Postgres decides publication
- * authority, Redis only makes it faster. Invalidation is the exception and rethrows, because it
- * runs inside a worker where a failure must become a retry rather than a silently stale entry.
+ * authority, Redis only makes it faster. Invalidation is the exception and rethrows, so the worker
+ * turns a failure into a retry rather than a silently stale entry; the inline caller logs and
+ * carries on instead, since the write is durable by the time it runs and the job still covers it.
  * RedisManager's own helpers throw on failure, which is why each call is wrapped here.
  */
 
